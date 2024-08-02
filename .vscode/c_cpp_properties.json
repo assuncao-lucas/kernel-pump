@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${default}",
+                "/home/lucas/Documentos/Research/kernel-pump/codes",
+                "/opt/ibm/ILOG/CPLEX_Studio2211/cplex/include",
+                "/opt/ibm/ILOG/CPLEX_Studio2211/concert/include"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

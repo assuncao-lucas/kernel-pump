@@ -1,0 +1,260 @@
+#!/bin/bash
+
+# make stop;
+
+# valgrind --leak-check=yes --track-origins=yes
+
+dir0="../instances/R-STOP-DP"
+dir_solutions=$(date +%Y-%m-%d_%H:%M:%S)
+mkdir "../solutions/"$dir_solutions
+
+# ./codes/bin/stop --compact --solve-relaxed --baseline --instance $instance --num-vehicles 2 --uncertainty-budget 2 --service-time-deviation 0.25
+# ./codes/bin/stop --solve-benders --benders-generic-callback --solve-relaxed --baseline --instance $instance --num-vehicles 2 --uncertainty-budget 2 --service-time-deviation 0.25
+# ./codes/bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --solve-relaxed --baseline --instance $instance --num-vehicles 2 --uncertainty-budget 2 --service-time-deviation 0.25
+
+# ./codes/bin/stop --compact --solve-relaxed --capacity-based --instance $instance --num-vehicles 2 --uncertainty-budget 2 --service-time-deviation 0.25
+# ./codes/bin/stop --solve-benders --benders-generic-callback --solve-relaxed --capacity-based --instance $instance --num-vehicles 2 --uncertainty-budget 2 --service-time-deviation 0.25
+# ./codes/bin/stop --solve-benders --combine-feas-opt-cuts --solve-relaxed --capacity-based --instance $instance --num-vehicles 2 --uncertainty-budget 2 --service-time-deviation 0.25
+
+time_limit=3600
+
+# ./bin/stop --solution-dir $dir_solutions --kernel-search --capacity-based --instance "../instances/R-STOP-DP/test.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.1
+
+# ./bin/stop --warm-start --solve-benders --benders-generic-callback --combine-feas-opt-cuts --separate-benders-cuts-relaxation --capacity-based --instance "../instances/R-STOP-DP/test.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.1 --time-limit $time_limit
+# ./bin/stop --warm-start --cutting-plane --capacity-based --CCCs --instance "../instances/R-STOP-DP/test.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.1 --time-limit $time_limit
+
+
+# ./bin/stop --solve-benders --benders-generic-callback --capacity-based --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP/RC50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+
+# instance 01 
+# ./bin/stop --solve-benders --baseline --instance "../instances/R-STOP-DP-reduced-0.8/R25_0.8.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --combine-feas-opt-cuts --baseline --instance "../instances/R-STOP-DP-reduced-0.8/R25_0.8.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --baseline --instance "../instances/R-STOP-DP-reduced-0.8/R25_0.8.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --baseline --instance "../instances/R-STOP-DP-reduced-0.8/R25_0.8.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --separate-benders-cuts-relaxation --baseline --instance "../instances/R-STOP-DP-reduced-0.8/R25_0.8.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+
+# ./bin/stop --solve-benders --capacity-based --instance "../instances/R-STOP-DP-reduced-0.8/R25_0.8.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP-reduced-0.8/R25_0.8.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --capacity-based --instance "../instances/R-STOP-DP-reduced-0.8/R25_0.8.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP-reduced-0.8/R25_0.8.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --separate-benders-cuts-relaxation --capacity-based --instance "../instances/R-STOP-DP-reduced-0.8/R25_0.8.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+
+# instance 02
+# ./bin/stop --solve-benders --baseline --instance "../instances/R-STOP-DP/R25_1.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --combine-feas-opt-cuts --baseline --instance "../instances/R-STOP-DP/R25_1.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --baseline --instance "../instances/R-STOP-DP/R25_1.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --baseline --instance "../instances/R-STOP-DP/R25_1.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --separate-benders-cuts-relaxation --baseline --instance "../instances/R-STOP-DP/R25_1.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+ 
+# ./bin/stop --solve-benders --capacity-based --instance "../instances/R-STOP-DP/R25_1.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP/R25_1.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --capacity-based --instance "../instances/R-STOP-DP/R25_1.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP/R25_1.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --separate-benders-cuts-relaxation --capacity-based --instance "../instances/R-STOP-DP/R25_1.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+
+# instance 03
+# ./bin/stop --solve-benders --baseline --instance "../instances/R-STOP-DP-reduced-0.8/R50_0.8.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --combine-feas-opt-cuts --baseline --instance "../instances/R-STOP-DP-reduced-0.8/R50_0.8.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --baseline --instance "../instances/R-STOP-DP-reduced-0.8/R50_0.8.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --baseline --instance "../instances/R-STOP-DP-reduced-0.8/R50_0.8.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --separate-benders-cuts-relaxation --baseline --instance "../instances/R-STOP-DP-reduced-0.8/R50_0.8.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+
+# ./bin/stop --solve-benders --capacity-based --instance "../instances/R-STOP-DP-reduced-0.8/R50_0.8.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP-reduced-0.8/R50_0.8.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --capacity-based --instance "../instances/R-STOP-DP-reduced-0.8/R50_0.8.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP-reduced-0.8/R50_0.8.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --separate-benders-cuts-relaxation --capacity-based --instance "../instances/R-STOP-DP-reduced-0.8/R50_0.8.txt" --num-vehicles 4 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+
+# # instance 04
+# ./bin/stop --solve-benders --baseline --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --combine-feas-opt-cuts --baseline --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --baseline --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --baseline --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --separate-benders-cuts-relaxation --baseline --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+
+# ./bin/stop --solve-benders --capacity-based --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --capacity-based --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --separate-benders-cuts-relaxation --separate-benders-cuts-relaxation --capacity-based --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+
+# # instance 05
+# ./bin/stop --solve-benders --baseline --instance "../instances/R-STOP-DP/RC50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --combine-feas-opt-cuts --baseline --instance "../instances/R-STOP-DP/RC50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --baseline --instance "../instances/R-STOP-DP/RC50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --baseline --instance "../instances/R-STOP-DP/RC50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --separate-benders-cuts-relaxation --baseline --instance "../instances/R-STOP-DP/RC50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+
+# ./bin/stop --solve-benders --capacity-based --instance "../instances/R-STOP-DP/RC50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP/RC50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --capacity-based --instance "../instances/R-STOP-DP/RC50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --capacity-based --instance "../instances/R-STOP-DP/RC50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+# ./bin/stop --solve-benders --benders-generic-callback --combine-feas-opt-cuts --separate-benders-cuts-relaxation --capacity-based --instance "../instances/R-STOP-DP/RC50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.5 --time-limit $time_limit
+
+# start_instance="C100_1_v4_d0.50_b0"
+start_instance="0"
+files=()
+# total
+# num_vehicles_vec=(2 3 4 5)
+# service_time_deviation_vec=(0.10 0.25 0.50)
+# uncertainty_budget_vec=(0 1 5 10)
+seeds=(1 2 3 4 5 6 7 8 9 10)
+time_limit=3600
+
+num_vehicles_vec=(2 4)
+service_time_deviation_vec=(0.10 0.25)
+uncertainty_budget_vec=(1 5)
+
+cont=0
+for file in $dir0/*.txt
+do
+	files[$cont]="$file"
+	((cont++))	
+done
+
+readarray -t sorted < <(printf '%s\0' "${files[@]}" | sort -z | xargs -0n1)
+
+# for file in ${files[@]}
+# do
+# 	echo $file
+# 	substr=$(echo $file | rev | cut -d'/' -f 1 | rev)
+# 	if [ "$substr" > "$curr_instance" ]
+# 	then
+# 		# echo $substr
+# 		for num_vehicles in ${num_vehicles_vec[@]}
+#         do
+# 			for service_time_deviation in ${service_time_deviation_vec[@]}
+#         	do
+# 				for uncertainty_budget in ${uncertainty_budget_vec[@]}
+#         		do
+# 					# echo $num_vehicles
+# 					# echo $service_time_deviation
+# 					# echo $uncertainty_budget
+#                     # Exact 
+#                     # ./bin/stop --solution-dir $dir_solutions --compact --baseline --time-limit $time_limit --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation
+#                     # ./bin/stop --solution-dir $dir_solutions --warm-start --compact --baseline --time-limit $time_limit --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --ks-max-size-bucket 2 --ks-min-time-limit 19 --ks-max-time-limit 84 --ks-decay-factor 0.96 --ks-feasibility-emphasis 1	
+# 					# ./bin/stop --solution-dir $dir_solutions --compact --capacity-based --time-limit $time_limit --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation
+#                     # ./bin/stop --solution-dir $dir_solutions --cutting-plane --baseline --AVICs --CCCs --time-limit $time_limit --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation
+#                     # ./bin/stop --solution-dir $dir_solutions --cutting-plane --capacity-based --AVICs --CCCs --time-limit $time_limit --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation
+#                     # Kernel Search
+#                     # ./bin/stop --solution-dir $dir_solutions --kernel-search --baseline --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --ks-max-size-bucket 5 --ks-min-time-limit 19 --ks-max-time-limit 84 --ks-decay-factor 0.96 --ks-feasibility-emphasis 1
+#                     # ./bin/stop --solution-dir $dir_solutions --kernel-search --capacity-based --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --ks-max-size-bucket 5 --ks-min-time-limit 25 --ks-max-time-limit 72 --ks-decay-factor 0.86 --ks-feasibility-emphasis 0
+# 					# ALNS
+# 					./bin/stop --solution-dir $dir_solutions --alns --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --seed 10 --alns-num-iterations 500 --alns-pool-size 20 --multi-threading
+# 				done
+# 			done
+# 		done 
+# 	fi
+# done
+
+# --solution-dir "teste" --alns --instance "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 5 --uncertainty-budget 5 --service-time-deviation $0.1 --seed 10 --alns-num-iterations 500 --alns-pool-size 20 --multi-threading
+
+
+# ./bin/stop --solution-dir "test" --warm-start --compact --baseline --time-limit 3600 --instance  "../instances/R-STOP-DP/R50_3.txt" --num-vehicles 2 --uncertainty-budget 5 --service-time-deviation 0.1 --seed 10 --alns --alns-num-iterations 500 --alns-pool-size 20 --metaheuristic-multi-threading
+
+# ./bin/stop --solution-dir "teste" --instance  "../instances/R-STOP-DP/C100_4.txt" --num-vehicles 2 --uncertainty-budget 10 --service-time-deviation 0.25 --seed 1 --simulated-annealing --metaheuristic-multi-threading
+
+# Relaxation
+# for file in ${sorted[@]}
+# do
+# 	substr=$(echo $file | rev | cut -d'/' -f 1 | rev)
+# 	substr=${substr//".txt"/}
+
+# 	for num_vehicles in ${num_vehicles_vec[@]}
+# 	do
+# 		for service_time_deviation in ${service_time_deviation_vec[@]}
+# 		do
+# 			for uncertainty_budget in ${uncertainty_budget_vec[@]}
+# 			do
+# 				# echo $num_vehicles
+# 				# echo $service_time_deviation
+# 				# echo $uncertainty_budget
+# 				curr_instance=$substr"_v"${num_vehicles}"_d"${service_time_deviation}"_b"${uncertainty_budget}
+# 				if [[ "$curr_instance" > "$start_instance" ]];
+# 				then
+# 					echo "* "$curr_instance
+# 					# Compact 
+# 					./bin/stop --solution-dir $dir_solutions --compact --baseline --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --solve-relaxed
+# 					./bin/stop --solution-dir $dir_solutions --compact --capacity-based --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --solve-relaxed
+
+# 					# Cut and branch
+# 					./bin/stop --solution-dir $dir_solutions --cutting-plane --AVICs --baseline --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --solve-relaxed
+# 					./bin/stop --solution-dir $dir_solutions --cutting-plane --CCCs --baseline --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --solve-relaxed
+# 					./bin/stop --solution-dir $dir_solutions --cutting-plane --AVICs --CCCs --baseline --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --solve-relaxed
+
+# 					./bin/stop --solution-dir $dir_solutions --cutting-plane --AVICs --capacity-based --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --solve-relaxed
+# 					./bin/stop --solution-dir $dir_solutions --cutting-plane --CCCs --capacity-based --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --solve-relaxed
+# 					./bin/stop --solution-dir $dir_solutions --cutting-plane --AVICs --CCCs --capacity-based --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --solve-relaxed
+# 				fi
+# 			done
+# 		done
+# 	done 
+# done
+
+# Exact and Kernel Search
+for file in ${sorted[@]}
+do
+	substr=$(echo $file | rev | cut -d'/' -f 1 | rev)
+	substr=${substr//".txt"/}
+
+	for num_vehicles in ${num_vehicles_vec[@]}
+	do
+		for service_time_deviation in ${service_time_deviation_vec[@]}
+		do
+			for uncertainty_budget in ${uncertainty_budget_vec[@]}
+			do
+				# echo $num_vehicles
+				# echo $service_time_deviation
+				# echo $uncertainty_budget
+				curr_instance=$substr"_v"${num_vehicles}"_d"${service_time_deviation}"_b"${uncertainty_budget}
+				if [[ "$curr_instance" > "$start_instance" ]];
+				then
+					echo "* "$curr_instance
+					# Compact 
+					# # ./bin/stop --solution-dir $dir_solutions --compact --baseline --warm-start --time-limit $time_limit --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation
+					./bin/stop --solution-dir $dir_solutions --compact --capacity-based --warm-start --time-limit $time_limit --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation
+
+					# # Cut and branch
+					# ./bin/stop --solution-dir $dir_solutions --cutting-plane --AVICs --CCCs --capacity-based --warm-start --simulated-annealing --sa-temperature-decay-rate 0.98 --metaheuristic-multi-threading --time-limit $time_limit --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation
+
+					# Kernel Search
+					# # ./bin/stop --solution-dir $dir_solutions --kernel-search --baseline --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --ks-max-size-bucket 5 --ks-min-time-limit 19 --ks-max-time-limit 84 --ks-decay-factor 0.96 --ks-feasibility-emphasis 1
+					# ./bin/stop --solution-dir $dir_solutions --kernel-search --capacity-based --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --ks-max-size-bucket 5 --ks-min-time-limit 25 --ks-max-time-limit 72 --ks-decay-factor 0.86 --ks-feasibility-emphasis 0	
+				fi
+			done
+		done
+	done 
+done
+
+# Metaheuristics
+# for file in ${sorted[@]}
+# do
+# 	substr=$(echo $file | rev | cut -d'/' -f 1 | rev)
+# 	substr=${substr//".txt"/}
+
+# 	for num_vehicles in ${num_vehicles_vec[@]}
+# 	do
+# 		for service_time_deviation in ${service_time_deviation_vec[@]}
+# 		do
+# 			for uncertainty_budget in ${uncertainty_budget_vec[@]}
+# 			do
+# 				# echo $num_vehicles
+# 				# echo $service_time_deviation
+# 				# echo $uncertainty_budget
+# 				curr_instance=$substr"_v"${num_vehicles}"_d"${service_time_deviation}"_b"${uncertainty_budget}
+# 				if [[ "$curr_instance" > "$start_instance" ]];
+# 				then
+# 					echo "* "$curr_instance
+# 					for seed in ${seeds[@]}
+# 					do
+# 						# Simulated Annealing 
+# 						# ./bin/stop --solution-dir $dir_solutions --alns --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation --seed $seed --alns-num-iterations 1000 --alns-pool-size 20 --multi-threading
+# 						./bin/stop --solution-dir $dir_solutions --simulated-annealing  --seed $seed --sa-temperature-decay-rate 0.98 --metaheuristic-multi-threading --instance $file --num-vehicles $num_vehicles --uncertainty-budget $uncertainty_budget --service-time-deviation $service_time_deviation
+# 					done
+# 				fi
+# 			done
+# 		done
+# 	done 
+# done
