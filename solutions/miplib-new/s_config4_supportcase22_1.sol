@@ -1,0 +1,12 @@
+STATUS: FAILED TO FIND AN INTEGER FEASIBLE SOLUTION
+time building kernel and buckets (s): 13.796360
+total time (s): 3602.041851
+# iterations: 12
+# buckets: 2
+last bucket visited: 2
+first bucket to iter pump: 2
+value: 0.000000
+reopt value: 0.000000
+real integrality gap: 0.230246
+projection integrality gap: 1.210775
+num frac: 29

@@ -4,9 +4,13 @@
             "name": "Linux",
             "includePath": [
                 "${default}",
-                "/home/lucas/Documentos/Research/kernel-pump/codes",
                 "/opt/ibm/ILOG/CPLEX_Studio2211/cplex/include",
-                "/opt/ibm/ILOG/CPLEX_Studio2211/concert/include"
+                "/opt/ibm/ILOG/CPLEX_Studio2211/concert/include",
+                "${workspaceFolder}/extern/utils/include",
+                "${workspaceFolder}/extern/fmt/include",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/extern/propagator/include",
+                "${workspaceFolder}"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# target="/home/personal/scripts/07_22_13/ford/$1"
+# let count=0
+# for f in "$target"/*
+# do
+#     echo $(basename $f)
+#     let count=count+1
+# done
+# echo ""
+# echo "Count: $count"
+
+instances_dir="/home/litis/Downloads/instances/benchmark"
+# the ../ is necessary because, when script is run, it does a cd ./build.
+instances_list="../instances/all_problems_benchmark.txt"
+configs_dir="../settings/all"
+configs_list="../settings/settings_list.txt"
+dir_solutions=$(date +%Y-%m-%d_%H:%M:%S)
+mkdir "./solutions/"$dir_solutions
+
+time_limit=3600
+start_instance=""
+files=()
+seeds=(4 5)
+configs_vec=()
+
+cd ./build
+
+# read instances
+# cont=0
+# for file in $instances_dir/*.*
+# do
+# 	files[$cont]="$file"
+# 	((cont++))	
+# done
+
+# read instances to be considered
+cont=0
+while read -r LINE_INST
+do
+    files[$cont]="$LINE_INST"
+	((cont++))	
+done < "$instances_list"
+
+readarray -t sorted_files < <(printf '%s\0' "${files[@]}" | sort -z | xargs -0n1)
+# reverse
+# readarray -t sorted_files < <(printf '%s\0' "${files[@]}" | sort -rz | xargs -0n1)
+
+# read configs
+cont=0
+while read -r LINE_CONF
+do
+    configs_vec[$cont]="$LINE_CONF"
+	((cont++))	
+done < "$configs_list"
+
+# readarray -t sorted_configs < <(printf '%s\0' "${configs_vec[@]}" | sort -z | xargs -0n1)
+
+for curr_instance in ${sorted_files[@]}
+	do
+	for config_name in ${configs_vec[@]}
+		do
+		echo "* inst: "$curr_instance
+		curr_instance_path="$instances_dir/$curr_instance"
+		echo "* inst path: "$curr_instance_path
+		config_path="$configs_dir/$config_name"
+		if [[ "$curr_instance" > "$start_instance" ]];
+		then
+			echo "* config: "$config_name
+			echo "* config path: "$config_path
+			for seed in ${seeds[@]}
+			do
+				echo "- seed: "$seed
+				./kp $curr_instance_path --config $config_path seed=$seed solutionFolder=$dir_solutions timeLimit=$time_limit
+			done
+		else
+			echo echo "** inst: "$curr_instance" | config: "$config_name" skipped"
+		fi
+	done
+done
+
+# curr_instance_path="/home/lucas/Downloads/10gil262rm2.lp"
+# echo "* inst path: "$curr_instance_path
+# config_path="$configs_dir/config1.cfg"
+# ./kp $curr_instance_path --config $config_path seed=1 solutionFolder=$dir_solutions timeLimit=$time_limit
+
+cd ..

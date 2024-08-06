@@ -1,0 +1,18 @@
+#!/bin/bash
+
+cd /home/lucas/Downloads/collection
+file_filter="/home/lucas/Documents/Research/kernel-pump/instances/binary_problems_collection_minus_benchmark.txt"
+
+# Exit if the directory isn't found.
+if (($?>0)); then
+    echo "Can't find work dir... exiting"
+    exit
+fi
+
+for i in *; do
+    if ! grep -qxFe "$i" $file_filter; then
+        echo "Deleting: $i"
+        # the next line is commented out.  Test it.  Then uncomment to removed the files
+        rm "$i"
+    fi
+done
