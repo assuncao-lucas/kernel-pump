@@ -46,7 +46,7 @@ The specific instances used from each benchmark are listed in the files:
 - instances/travel-tour-problem-circ.txt
 
 The configurations tested are stored in the 'settings/all' folder:
-- "config1" corresponds to "FP$^*$"
+- "config1" corresponds to "FP$$^*$$"
 - "config3" corresponds to "FP$^{-}$"
 - "config20" corresponds to "FP$^{+}$"
 - "config16" corresponds to "KP$^*$"
