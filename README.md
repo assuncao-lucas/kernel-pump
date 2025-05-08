@@ -46,15 +46,15 @@ The specific instances used from each benchmark are listed in the files:
 - instances/travel-tour-problem-circ.txt
 
 The configurations tested are stored in the 'settings/all' folder:
-- "config1" corresponds to "FP<sup>*</sup>"
-- "config3" corresponds to "FP<sup>-</sup>"
-- "config20" corresponds to "FP$<sup>+</sup>"
-- "config16" corresponds to "KP$<sup>*</sup>"
-- "config17" corresponds to "KP<sup>-</sup>$"
-- "config21" corresponds to "KP<sup>+</sup>$"
-- "config23" corresponds to "KP<sup>+/-</sup>$"
-- "config19" corresponds to "CPLEX<sub>std</sub>$"
-- "config18" corresponds to "CPLEX<sub>feas</sub>$"
+- "config1" corresponds to 'FP<sup>*</sup>'
+- "config3" corresponds to 'FP<sup>-</sup>'
+- "config20" corresponds to 'FP$<sup>+</sup>'
+- "config16" corresponds to 'KP$<sup>*</sup>'
+- "config17" corresponds to 'KP<sup>-</sup>'
+- "config21" corresponds to 'KP<sup>+</sup>'
+- "config23" corresponds to 'KP<sup>+/-</sup>'
+- "config19" corresponds to 'CPLEX<sub>std</sub>'
+- "config18" corresponds to 'CPLEX<sub>feas</sub>'
 
 All the experiments were run in silent mode.
 It is possible to run all the experiments by calling [this script file](script). It is necessary to change the 'instances_dir' and 'instances_list' variables of the script accordingly.
