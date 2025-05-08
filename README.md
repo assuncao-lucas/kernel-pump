@@ -48,8 +48,8 @@ The specific instances used from each benchmark are listed in the files:
 The configurations tested are stored in the 'settings/all' folder:
 - "config1" corresponds to 'FP<sup>*</sup>'
 - "config3" corresponds to 'FP<sup>-</sup>'
-- "config20" corresponds to 'FP$<sup>+</sup>'
-- "config16" corresponds to 'KP$<sup>*</sup>'
+- "config20" corresponds to 'FP<sup>+</sup>'
+- "config16" corresponds to 'KP<sup>*</sup>'
 - "config17" corresponds to 'KP<sup>-</sup>'
 - "config21" corresponds to 'KP<sup>+</sup>'
 - "config23" corresponds to 'KP<sup>+/-</sup>'
