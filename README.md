@@ -80,7 +80,7 @@ For example, to reproduce the full experiments for all MIPLIB instances and conf
 ####Random Sampling Execution
 The optinal parameter [--percentage-random-sample INTEGER 0-100] determines a percentage of the instances listed in --instances-list that should be randomly selected to run. The default value is 100, case where the full instance set is considered.
 
-####Results compilation
+####Results generation
 In the last step of the script execution, the results of the execution are compiled and stored in a sub-folder within [solutions](solutions). The sub-folder is created during the execution with the current date/timestamp. Aside from a solution file for each combination of *instance x configuration x seed*, other result files are stored in this sub-folder:
 - **sorted_files_list.txt**:  keeps the list of the instances considered in the experiments (specially useful when randomly sampling);
 - **summary.csv**: raw results for each *instance x configuration x seed* execution. Important columns are *status* (which points out if the execution suceeded in findind a feasible solution or not) and *total time* (in seconds);
