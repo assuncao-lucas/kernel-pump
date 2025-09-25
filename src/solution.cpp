@@ -5,8 +5,7 @@
 void Solution::WriteToFile(std::string folder, std::string config_name, std::string instance_name, uint64_t seed) const
 {
 	std::fstream file;
-	std::string path = "..//solutions//";
-	path.append(folder);
+	std::string path = folder;
 	// struct stat sb;
 	// if(stat(path.c_str(),&sb) != 0 || !S_ISDIR(sb.st_mode)) mkdir(path.c_str(),0777);
 	path.append("//s_");

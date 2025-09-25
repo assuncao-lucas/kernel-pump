@@ -1,6 +1,6 @@
 STATUS: FAILED TO FIND AN INTEGER FEASIBLE SOLUTION
-time building kernel and buckets (s): 3597.843602
-total time (s): 3600.913750
+time building kernel and buckets (s): 3597.885351
+total time (s): 3600.842795
 # iterations: 0
 # buckets: 10
 last bucket visited: -1
@@ -10,3 +10,5 @@ reopt value: 0.000000
 real integrality gap: 17680.000000
 projection integrality gap: 100000000000000000000.000000
 num frac: 17680
+num bin vars added: 14659
+num bin vars with value 1: 0

@@ -1,6 +1,6 @@
 STATUS: FOUND INTEGER FEASIBLE
-time building kernel and buckets (s): 1.404048
-total time (s): 7.965473
+time building kernel and buckets (s): 1.437545
+total time (s): 8.985610
 # iterations: 3
 # buckets: 8
 last bucket visited: 8
@@ -10,3 +10,5 @@ reopt value: 121379.464286
 real integrality gap: 0.000000
 projection integrality gap: 0.000000
 num frac: 0
+num bin vars added: 57231
+num bin vars with value 1: 151

@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <sstream>
 #include <fstream>
+#include <getopt.h>
 #include <vector>
 #include <iomanip>
 #include <algorithm>
@@ -77,7 +78,7 @@ void AddFiles(std::string directory, std::vector<std::pair<std::string, std::str
     }
     else
     {
-        std::cout << "Invalid directory" << std::endl;
+        std::cout << "Invalid directory: " << directory << std::endl;
         throw 1;
     }
 }
@@ -133,15 +134,52 @@ struct PerformanceTuple
     int losses;
 };
 
-void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_list_file, std::string solutions_folder, double time_limit, PerformanceMeasureType type)
+// Function to remove the extension from a filename
+std::string removeExtension(const std::string &filename)
+{
+    size_t lastDot = filename.find_last_of('.');
+    if (lastDot == std::string::npos)
+    {
+        return filename; // no extension found
+    }
+    return filename.substr(0, lastDot);
+}
+
+void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_list_file, std::string configs_list_file, std::string solutions_folder, double time_limit, int num_seeds, PerformanceMeasureType type)
 {
     std::string curr_file;
     std::vector<std::pair<std::string, std::string>> instances;
-    std::vector<std::string> configs{
-        "config1", "config3", "config20", "config16", "config17", "config21", "config23", "config19", "config18"};
-    std::vector<std::string>
-        seeds{"1", "2", "3", "4", "5"};
-    int num_seeds = seeds.size();
+    std::vector<std::string> configs;
+    std::vector<std::string> seeds;
+
+    for (int seed = 1; seed <= num_seeds; ++seed)
+        seeds.push_back(std::to_string(seed));
+
+    std::ifstream infile(configs_list_file);
+    if (!infile)
+    {
+        throw "Error: Could not open file " + configs_list_file;
+    }
+
+    std::string line;
+
+    while (std::getline(infile, line))
+    {
+        if (!line.empty())
+        {
+            std::string baseName = removeExtension(line);
+            configs.push_back(baseName);
+        }
+    }
+
+    infile.close();
+
+    // Print results for verification
+    std::cout << "Configs considered in results:" << std::endl;
+    for (const auto &name : configs)
+    {
+        std::cout << "  " << name << std::endl;
+    }
 
     // AddFilesFromDirectory(instances_folder, instances, false);
     AddFiles(inst_list_file, instances);
@@ -155,7 +193,7 @@ void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_li
 
     std::fstream output;
     std::string output_name;
-    output_name = "..//tables//latex//performance_matrix.txt";
+    output_name = solutions_folder + "//performance_matrix.txt";
     output.open(output_name.c_str(), std::fstream::out);
 
     if (!output.is_open())
@@ -274,8 +312,8 @@ void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_li
                     if (lessThan(instance_results_per_config[i].first, instance_results_per_config[j].first))
                     {
                         matrix[i][j].wins += 1;
-                        if (configs[i] == "config17" && configs[j] == "config19")
-                            std::cout << "!!!!!!!!!!!!!!!!!!" << instance.first << std::endl;
+                        // if (configs[i] == "config17" && configs[j] == "config19")
+                        //     std::cout << "!!!!!!!!!!!!!!!!!!" << instance.first << std::endl;
                     }
                     else if (equal(instance_results_per_config[i].first, instance_results_per_config[j].first))
                         matrix[i][j].ties += 1;
@@ -907,17 +945,89 @@ void ComputeDifferenceLists(std::string list1_file, std::string list2_file)
         std::cout << element << std::endl;
 }
 
-int main()
+static const struct option longOpts[] = {
+    {"instances-dir", required_argument, NULL, 'a'},
+    {"instances-list", required_argument, NULL, 'b'},
+    {"configs-list", required_argument, NULL, 'c'},
+    {"solutions-dir", required_argument, NULL, 'd'},
+    {"time-limit", required_argument, NULL, 'e'},
+    {"num-seeds", required_argument, NULL, 'f'},
+    {NULL, no_argument, NULL, 0}};
+
+void ParseArgumentsAndRun(int argc, char *argv[])
 {
-    // ComputeDifferenceLists("/home/lucas/Documents/Research/kernel-pump/instances/integer_problems_collection.txt", "/home/lucas/Documents/Research/kernel-pump/instances/integer_problems_benchmark.txt");
-    std::string inst_folder = "/home/lucas/Downloads/instances/benchmark";
-    std::string inst_list_file = "/home/lucas/Documents/Research/kernel-pump/instances/all_problems_benchmark.txt";
-    std::string solutions_folder = "/home/lucas/Documents/Research/kernel-pump/solutions/miplib-new";
-    std::string best_known_bounds_csv = "/home/lucas/Documents/Research/kernel-pump/results/bestKnownBounds.csv";
+    int c;
+    std::string inst_folder;
+    std::string inst_list_file;
+    std::string solutions_folder;
+    std::string best_known_bounds_csv;
+    std::string configs_list_file;
+    double time_limit = 3600;
+    int num_seeds = 5;
 
-    // GenerateAlgorithmsCSVAndLatexTable(inst_folder, inst_list_file, solutions_folder, best_known_bounds_csv, 3600.0);
+    while ((c = getopt_long(argc, argv, "a:b:c:d:e:f:", longOpts, NULL)) != -1)
+    {
+        switch (c)
+        {
+        case 'a':
+            inst_folder = std::string(optarg);
+            break;
+        case 'b':
+            inst_list_file = std::string(optarg);
+            break;
+        case 'c':
+            configs_list_file = std::string(optarg);
+            break;
+        case 'd':
+            solutions_folder = std::string(optarg);
+            break;
+        case 'e':
+            time_limit = std::atof(optarg);
+            break;
+        case 'f':
+            num_seeds = std::atoi(optarg);
+            break;
+        default:
+            throw "invalid getopt argument";
+        }
+    }
 
-    // GeneratePerformanceProfile(inst_folder, inst_list_file, solutions_folder, 3600.0, PerformanceMeasureType::time);
-    GeneratePerformanceMatrix(inst_folder, inst_list_file, solutions_folder, 3600.0, PerformanceMeasureType::success);
+    // GenerateAlgorithmsCSVAndLatexTable(inst_folder, inst_list_file, solutions_folder, best_known_bounds_csv, time_limit);
+
+    // GeneratePerformanceProfile(inst_folder, inst_list_file, solutions_folder, time_limit, PerformanceMeasureType::time);
+    GeneratePerformanceMatrix(inst_folder, inst_list_file, configs_list_file, solutions_folder, time_limit, num_seeds, PerformanceMeasureType::success);
+}
+
+int main(int argc, char *argv[])
+{
+    try
+    {
+        ParseArgumentsAndRun(argc, argv);
+    }
+    catch (const std::runtime_error &re)
+    {
+        std::cout << "Runtime error: " << re.what() << std::endl;
+    }
+    catch (const std::exception &ex)
+    {
+        std::cout << "Error occurred: " << ex.what() << std::endl;
+    }
+    catch (const int &error)
+    {
+        std::cout << "Error occurred: " << error << std::endl;
+    }
+    catch (const char *e)
+    {
+        std::cout << e << std::endl;
+    }
+    catch (const std::string &e)
+    {
+        std::cout << e << std::endl;
+    }
+    catch (...)
+    {
+        std::cout << "Unknown failure occurred. Possible memory corruption" << std::endl;
+    }
+
     return 0;
 }
