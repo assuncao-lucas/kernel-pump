@@ -261,7 +261,7 @@ cd ./results/build
 
 # Build results executable
 echo "Building results executable..."
-make -j12 -DSILENT_EXEC=ON
+make -j12
 
 # Reconstruct arguments (absolute paths, excluding random sampling flags)
 results_args=( 

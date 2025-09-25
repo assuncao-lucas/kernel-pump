@@ -271,7 +271,7 @@ void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_li
                 double tolerance = 10.0;
                 if (greaterThan(total_time, time_limit + tolerance))
                 {
-                    std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
+                    // std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
                     total_time = time_limit;
                 }
 
@@ -452,7 +452,7 @@ void GeneratePerformanceProfile(std::string instances_folder, std::string inst_l
                 double tolerance = 10.0;
                 if (greaterThan(total_time, time_limit + tolerance))
                 {
-                    std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
+                    // std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
                     total_time = time_limit;
                 }
 
@@ -717,7 +717,7 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
                 double tolerance = 10.0;
                 if (greaterThan(total_time, time_limit + tolerance))
                 {
-                    std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
+                    // std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
                     total_time = time_limit;
                 }
 

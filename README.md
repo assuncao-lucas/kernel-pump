@@ -30,15 +30,19 @@ This project uses CMake. For compiling, perform the following steps on the root 
 
 Usage
 -------------
+
+The execution file is stored in the folder [build](build) after compiled.
 ```
-.kp prob_file --config (-c) config_file
+./kp PATH_INSTANCE_FILE --config (-c) CONFIG_FILE seed=INTEGER solutionFolder=PATH timeLimit=FLOAT
 ```
+Seed can be any integer number, and all the directories and files given as argument should exist.
 
 Is is also possible to overrride config arguments like this:
 ```
-.kp prob_file --config (-c) config_file arg=value
+.kp PATH_INSTANCE_FILE --config (-c) CONFIG_FILE arg=value
 ```
 
+Check examples of config files in the folder [settings](settings/all).
 Experiments reproduction
 -------------
 In the main experiments of the Kernel Pump method, three benchmark of instances were used:
@@ -71,7 +75,7 @@ Script Usage:
 
 For example, to reproduce the full experiments for all MIPLIB instances and configurations tested in the article, one could run:
 ```
-./script_reproduce_experiments.sh --instances-dir PATH_TO_MIPLIB_INSTANCE_FOLDER --instances-list "./instances/miplip.txt" --configs-list "./settings/settings_list.txt" --num-seeds 5 --time-limit 3600
+./script_reproduce_experiments.sh --instances-dir PATH_TO_MIPLIB_INSTANCE_FOLDER --instances-list "./instances/miplip.txt" --configs-list "./settings/settings_list.txt" --num-seeds 3 --time-limit 3600
 ```
 ####Random Sampling Execution
 The optinal parameter [--percentage-random-sample INTEGER 0-100] determines a percentage of the instances listed in --instances-list that should be randomly selected to run. The default value is 100, case where the full instance set is considered.
