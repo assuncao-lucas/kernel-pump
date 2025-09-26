@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <sstream>
 #include <fstream>
+#include <getopt.h>
 #include <vector>
 #include <iomanip>
 #include <algorithm>
@@ -77,7 +78,7 @@ void AddFiles(std::string directory, std::vector<std::pair<std::string, std::str
     }
     else
     {
-        std::cout << "Invalid directory" << std::endl;
+        std::cout << "Invalid directory: " << directory << std::endl;
         throw 1;
     }
 }
@@ -133,15 +134,52 @@ struct PerformanceTuple
     int losses;
 };
 
-void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_list_file, std::string solutions_folder, double time_limit, PerformanceMeasureType type)
+// Function to remove the extension from a filename
+std::string removeExtension(const std::string &filename)
+{
+    size_t lastDot = filename.find_last_of('.');
+    if (lastDot == std::string::npos)
+    {
+        return filename; // no extension found
+    }
+    return filename.substr(0, lastDot);
+}
+
+void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_list_file, std::string configs_list_file, std::string solutions_folder, double time_limit, int num_seeds, PerformanceMeasureType type)
 {
     std::string curr_file;
     std::vector<std::pair<std::string, std::string>> instances;
-    std::vector<std::string> configs{
-        "config1", "config3", "config20", "config16", "config17", "config21", "config23", "config19", "config18"};
-    std::vector<std::string>
-        seeds{"1", "2", "3", "4", "5"};
-    int num_seeds = seeds.size();
+    std::vector<std::string> configs;
+    std::vector<std::string> seeds;
+
+    for (int seed = 1; seed <= num_seeds; ++seed)
+        seeds.push_back(std::to_string(seed));
+
+    std::ifstream infile(configs_list_file);
+    if (!infile)
+    {
+        throw "Error: Could not open file " + configs_list_file;
+    }
+
+    std::string line;
+
+    while (std::getline(infile, line))
+    {
+        if (!line.empty())
+        {
+            std::string baseName = removeExtension(line);
+            configs.push_back(baseName);
+        }
+    }
+
+    infile.close();
+
+    // Print results for verification
+    std::cout << "Configs considered in results:" << std::endl;
+    for (const auto &name : configs)
+    {
+        std::cout << "  " << name << std::endl;
+    }
 
     // AddFilesFromDirectory(instances_folder, instances, false);
     AddFiles(inst_list_file, instances);
@@ -155,7 +193,7 @@ void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_li
 
     std::fstream output;
     std::string output_name;
-    output_name = "..//tables//latex//performance_matrix.txt";
+    output_name = solutions_folder + "//success_comparison_matrix.txt";
     output.open(output_name.c_str(), std::fstream::out);
 
     if (!output.is_open())
@@ -233,7 +271,7 @@ void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_li
                 double tolerance = 10.0;
                 if (greaterThan(total_time, time_limit + tolerance))
                 {
-                    std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
+                    // std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
                     total_time = time_limit;
                 }
 
@@ -274,8 +312,8 @@ void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_li
                     if (lessThan(instance_results_per_config[i].first, instance_results_per_config[j].first))
                     {
                         matrix[i][j].wins += 1;
-                        if (configs[i] == "config17" && configs[j] == "config19")
-                            std::cout << "!!!!!!!!!!!!!!!!!!" << instance.first << std::endl;
+                        // if (configs[i] == "config17" && configs[j] == "config19")
+                        //     std::cout << "!!!!!!!!!!!!!!!!!!" << instance.first << std::endl;
                     }
                     else if (equal(instance_results_per_config[i].first, instance_results_per_config[j].first))
                         matrix[i][j].ties += 1;
@@ -414,7 +452,7 @@ void GeneratePerformanceProfile(std::string instances_folder, std::string inst_l
                 double tolerance = 10.0;
                 if (greaterThan(total_time, time_limit + tolerance))
                 {
-                    std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
+                    // std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
                     total_time = time_limit;
                 }
 
@@ -474,16 +512,42 @@ double StDev(const std::vector<double> &gaps)
     return pow(stdev, 0.5);
 }
 
-void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::string inst_list_file, std::string solutions_folder, std::string best_known_bounds_csv, double time_limit)
+void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::string inst_list_file, std::string configs_list_file, std::string solutions_folder, std::string best_known_bounds_csv, double time_limit, int num_seeds)
 {
     std::string curr_file;
     std::string solver = "cpx";
     std::vector<std::pair<std::string, std::string>> instances;
-    std::vector<std::string> configs{
-        "config1", "config3", "config20", "config16", "config17", "config21", "config23", "config19", "config18"};
-    std::vector<std::string>
-        seeds{"1", "2", "3", "4", "5"};
-    int num_seeds = seeds.size();
+    std::vector<std::string> configs;
+    std::vector<std::string> seeds;
+
+    for (int seed = 1; seed <= num_seeds; ++seed)
+        seeds.push_back(std::to_string(seed));
+
+    std::ifstream infile(configs_list_file);
+    if (!infile)
+    {
+        throw "Error: Could not open file " + configs_list_file;
+    }
+
+    std::string line;
+
+    while (std::getline(infile, line))
+    {
+        if (!line.empty())
+        {
+            std::string baseName = removeExtension(line);
+            configs.push_back(baseName);
+        }
+    }
+
+    infile.close();
+
+    // Print results for verification
+    std::cout << "Configs considered in results:" << std::endl;
+    for (const auto &name : configs)
+    {
+        std::cout << "  " << name << std::endl;
+    }
 
     MIPModelPtr model;
 #ifdef HAS_CPLEX
@@ -548,17 +612,17 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
     std::fstream output, output2, output3;
     std::string output_name, output_name2, output_name3;
     output_name = "..//tables//latex//table_algorithms.csv";
-    output_name2 = "..//tables//latex//table_performance.txt";
-    output_name3 = "..//tables//latex//table_convergence.txt";
-    output.open(output_name.c_str(), std::fstream::out);
+    output_name2 = solutions_folder + "/table_performance.txt";
+    output_name3 = solutions_folder + "/table_convergence.txt";
+    // output.open(output_name.c_str(), std::fstream::out);
     output2.open(output_name2.c_str(), std::fstream::out);
     output3.open(output_name3.c_str(), std::fstream::out);
 
-    if (!output.is_open())
-    {
-        std::cout << "Could not open file " << output_name << std::endl;
-        throw 1;
-    }
+    // if (!output.is_open())
+    // {
+    //     std::cout << "Could not open file " << output_name << std::endl;
+    //     throw 1;
+    // }
 
     if (!output2.is_open())
     {
@@ -573,7 +637,7 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
     }
     // std::cout << output_name << std::endl;
 
-    output << std::setprecision(6) << std::fixed;
+    // output << std::setprecision(6) << std::fixed;
     output2 << std::setprecision(2) << std::fixed;
     output3 << std::setprecision(2) << std::fixed;
 
@@ -599,23 +663,23 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
     int num_integer_and_binary_vars = 0;
     int num_binary_vars = 0;
 
-    output << ", ";
-    for (int i = 0; i < configs.size(); ++i)
-        output << ", " << configs[i] << " , , , , , , , , , , , , ";
-    // output << "\\\\" << std::endl;
-    output << std::endl;
+    // output << ", ";
+    // for (int i = 0; i < configs.size(); ++i)
+    //     output << ", " << configs[i] << " , , , , , , , , , , , , ";
+    // // output << "\\\\" << std::endl;
+    // output << std::endl;
 
-    output << "instance ";
-    for (int i = 0; i < configs.size(); ++i)
-        output << ", , total success, avg success , iter , visited buckets (%), first feasible bucket (%) , actual int gap (%) , proj int gap (%), num frac (%), obj gap (%), time (s) , added bin vars (%), active bin vars (%)";
-    // output << "\\\\" << std::endl;
-    output << std::endl;
+    // output << "instance ";
+    // for (int i = 0; i < configs.size(); ++i)
+    //     output << ", , total success, avg success , iter , visited buckets (%), first feasible bucket (%) , actual int gap (%) , proj int gap (%), num frac (%), obj gap (%), time (s) , added bin vars (%), active bin vars (%)";
+    // // output << "\\\\" << std::endl;
+    // output << std::endl;
 
     for (const auto instance : instances)
     {
         double inst_best_bound = instances_bounds[instance.first];
         // std::cout << instance.first + instance.second << std::endl;
-        output << instance.first;
+        // output << instance.first;
         model->readModel(instances_folder + "//" + instance.first + instance.second);
         // double objsen = (model->objSense() == ObjSense::MIN) ? 1.0 : -1.0;
         num_integer_and_binary_vars = model->numIntegerAndBinaryCols();
@@ -679,7 +743,7 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
                 double tolerance = 10.0;
                 if (greaterThan(total_time, time_limit + tolerance))
                 {
-                    std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
+                    // std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
                     total_time = time_limit;
                 }
 
@@ -823,7 +887,7 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
             avg_num_frac /= num_seeds;
             avg_percentage_first_feasible_bucket /= num_seeds;
 
-            output << " , , " << std::ceil(avg_success) << " , " << avg_success << " , " << avg_iter << " , " << avg_percentage_visited_buckets << " , " << avg_percentage_first_feasible_bucket << " , " << avg_actual_gap << " , " << avg_proj_gap << " , " << avg_num_frac << " , " << avg_obj_gap << " , " << avg_time << " , " << avg_percentage_added_vars << " , " << avg_percentage_active_vars;
+            // output << " , , " << std::ceil(avg_success) << " , " << avg_success << " , " << avg_iter << " , " << avg_percentage_visited_buckets << " , " << avg_percentage_first_feasible_bucket << " , " << avg_actual_gap << " , " << avg_proj_gap << " , " << avg_num_frac << " , " << avg_obj_gap << " , " << avg_time << " , " << avg_percentage_added_vars << " , " << avg_percentage_active_vars;
 
             total_avg_success_per_config[config_num] += avg_success;
             total_num_success_per_config[config_num] += std::ceil(avg_success);
@@ -835,23 +899,23 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
             total_percentage_first_feasible_bucket_per_config[config_num] += avg_percentage_first_feasible_bucket;
         }
         // output << "\\\\" << std::endl;
-        output << std::endl;
+        // output << std::endl;
     }
 
-    output << "Total";
+    // output << "Total";
     for (size_t config_num = 0; config_num < configs.size(); ++config_num)
     {
-        if (num_instances_discarded_from_obj_gap_computation_per_config[config_num] >= total_num_instances)
-            output << " , , " << (int)(total_num_success_per_config[config_num]) << " , " << total_avg_success_per_config[config_num] / total_num_instances << " , " << total_iter_per_config[config_num] / total_num_instances << " , - , " << total_percentage_first_feasible_bucket_per_config[config_num] / total_num_instances << " , " << total_actual_gap_per_config[config_num] / total_num_instances << " , " << total_proj_gap_per_config[config_num] / total_num_instances << " , " << total_num_frac_per_config[config_num] / total_num_instances << " , - , " << total_time_per_config[config_num] / total_num_instances << " , - , - ";
-        else
-            output << " , , " << (int)(total_num_success_per_config[config_num])
-                   << " , " << total_avg_success_per_config[config_num] / total_num_instances << " , " << total_iter_per_config[config_num] / total_num_instances << " , "
-                   << total_percentage_visited_buckets_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num]) << " , " << total_percentage_first_feasible_bucket_per_config[config_num] / total_num_instances
-                   << " , " << total_actual_gap_per_config[config_num] / total_num_instances << " , " << total_proj_gap_per_config[config_num] / total_num_instances << " , "
-                   << total_num_frac_per_config[config_num] / total_num_instances << " , " << total_obj_gap_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num])
-                   << " , " << total_time_per_config[config_num] / total_num_instances
-                   << " , " << total_percentage_added_vars_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num])
-                   << " , " << total_percentage_active_vars_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num]);
+        // if (num_instances_discarded_from_obj_gap_computation_per_config[config_num] >= total_num_instances)
+        //     output << " , , " << (int)(total_num_success_per_config[config_num]) << " , " << total_avg_success_per_config[config_num] / total_num_instances << " , " << total_iter_per_config[config_num] / total_num_instances << " , - , " << total_percentage_first_feasible_bucket_per_config[config_num] / total_num_instances << " , " << total_actual_gap_per_config[config_num] / total_num_instances << " , " << total_proj_gap_per_config[config_num] / total_num_instances << " , " << total_num_frac_per_config[config_num] / total_num_instances << " , - , " << total_time_per_config[config_num] / total_num_instances << " , - , - ";
+        // else
+        //     output << " , , " << (int)(total_num_success_per_config[config_num])
+        //            << " , " << total_avg_success_per_config[config_num] / total_num_instances << " , " << total_iter_per_config[config_num] / total_num_instances << " , "
+        //            << total_percentage_visited_buckets_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num]) << " , " << total_percentage_first_feasible_bucket_per_config[config_num] / total_num_instances
+        //            << " , " << total_actual_gap_per_config[config_num] / total_num_instances << " , " << total_proj_gap_per_config[config_num] / total_num_instances << " , "
+        //            << total_num_frac_per_config[config_num] / total_num_instances << " , " << total_obj_gap_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num])
+        //            << " , " << total_time_per_config[config_num] / total_num_instances
+        //            << " , " << total_percentage_added_vars_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num])
+        //            << " , " << total_percentage_active_vars_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num]);
 
         output2 << map_config_latex_name[configs[config_num]] << " && "
                 << (int)(total_num_success_per_config[config_num]) << "/" << total_num_instances
@@ -874,9 +938,9 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
         }
     }
 
-    output << std::endl;
+    // output << std::endl;
 
-    output.close();
+    // output.close();
     output2.close();
     output3.close();
 }
@@ -907,17 +971,89 @@ void ComputeDifferenceLists(std::string list1_file, std::string list2_file)
         std::cout << element << std::endl;
 }
 
-int main()
+static const struct option longOpts[] = {
+    {"instances-dir", required_argument, NULL, 'a'},
+    {"instances-list", required_argument, NULL, 'b'},
+    {"configs-list", required_argument, NULL, 'c'},
+    {"solutions-dir", required_argument, NULL, 'd'},
+    {"time-limit", required_argument, NULL, 'e'},
+    {"num-seeds", required_argument, NULL, 'f'},
+    {NULL, no_argument, NULL, 0}};
+
+void ParseArgumentsAndRun(int argc, char *argv[])
 {
-    // ComputeDifferenceLists("/home/lucas/Documents/Research/kernel-pump/instances/integer_problems_collection.txt", "/home/lucas/Documents/Research/kernel-pump/instances/integer_problems_benchmark.txt");
-    std::string inst_folder = "/home/lucas/Downloads/instances/benchmark";
-    std::string inst_list_file = "/home/lucas/Documents/Research/kernel-pump/instances/all_problems_benchmark.txt";
-    std::string solutions_folder = "/home/lucas/Documents/Research/kernel-pump/solutions/miplib-new";
-    std::string best_known_bounds_csv = "/home/lucas/Documents/Research/kernel-pump/results/bestKnownBounds.csv";
+    int c;
+    std::string inst_folder;
+    std::string inst_list_file;
+    std::string solutions_folder;
+    std::string best_known_bounds_csv;
+    std::string configs_list_file;
+    double time_limit = 3600;
+    int num_seeds = 3;
 
-    // GenerateAlgorithmsCSVAndLatexTable(inst_folder, inst_list_file, solutions_folder, best_known_bounds_csv, 3600.0);
+    while ((c = getopt_long(argc, argv, "a:b:c:d:e:f:", longOpts, NULL)) != -1)
+    {
+        switch (c)
+        {
+        case 'a':
+            inst_folder = std::string(optarg);
+            break;
+        case 'b':
+            inst_list_file = std::string(optarg);
+            break;
+        case 'c':
+            configs_list_file = std::string(optarg);
+            break;
+        case 'd':
+            solutions_folder = std::string(optarg);
+            break;
+        case 'e':
+            time_limit = std::atof(optarg);
+            break;
+        case 'f':
+            num_seeds = std::atoi(optarg);
+            break;
+        default:
+            throw "invalid getopt argument";
+        }
+    }
 
-    // GeneratePerformanceProfile(inst_folder, inst_list_file, solutions_folder, 3600.0, PerformanceMeasureType::time);
-    GeneratePerformanceMatrix(inst_folder, inst_list_file, solutions_folder, 3600.0, PerformanceMeasureType::success);
+    GenerateAlgorithmsCSVAndLatexTable(inst_folder, inst_list_file, configs_list_file, solutions_folder, best_known_bounds_csv, time_limit, num_seeds);
+
+    // GeneratePerformanceProfile(inst_folder, inst_list_file, solutions_folder, time_limit, PerformanceMeasureType::time);
+    GeneratePerformanceMatrix(inst_folder, inst_list_file, configs_list_file, solutions_folder, time_limit, num_seeds, PerformanceMeasureType::success);
+}
+
+int main(int argc, char *argv[])
+{
+    try
+    {
+        ParseArgumentsAndRun(argc, argv);
+    }
+    catch (const std::runtime_error &re)
+    {
+        std::cout << "Runtime error: " << re.what() << std::endl;
+    }
+    catch (const std::exception &ex)
+    {
+        std::cout << "Error occurred: " << ex.what() << std::endl;
+    }
+    catch (const int &error)
+    {
+        std::cout << "Error occurred: " << error << std::endl;
+    }
+    catch (const char *e)
+    {
+        std::cout << e << std::endl;
+    }
+    catch (const std::string &e)
+    {
+        std::cout << e << std::endl;
+    }
+    catch (...)
+    {
+        std::cout << "Unknown failure occurred. Possible memory corruption" << std::endl;
+    }
+
     return 0;
 }

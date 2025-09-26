@@ -1,0 +1,5 @@
+instance,config,seed,status,time_kernel,total_time,iterations,buckets,last_bucket,first_bucket,value,reopt_value,real_gap,proj_gap,num_frac
+r-stop-dp-R100_3_v2_d0.25_b1,config18,1,FOUND INTEGER FEASIBLE,0.000000,2.512093,0,0,-1,-1,0.000000,0.000000,0.000000,0.000000,0
+r-stop-dp-R100_3_v2_d0.25_b1,config18,2,FOUND INTEGER FEASIBLE,0.000000,2.515890,0,0,-1,-1,0.000000,0.000000,0.000000,0.000000,0
+r-stop-dp-R100_3_v2_d0.25_b1,config19,1,FOUND INTEGER FEASIBLE,0.000000,2.525532,0,0,-1,-1,0.000000,0.000000,0.000000,0.000000,0
+r-stop-dp-R100_3_v2_d0.25_b1,config19,2,FOUND INTEGER FEASIBLE,0.000000,2.605279,0,0,-1,-1,0.000000,0.000000,0.000000,0.000000,0

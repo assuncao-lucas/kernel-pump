@@ -1,5 +1,5 @@
 # silent mode execution. Comment line below if you want the verbose mode.
-add_definitions(-DSILENT_EXEC) 
+add_definitions(-DSILENT_EXEC)
 
 # Common boilerplate
 cmake_minimum_required(VERSION 3.5)
