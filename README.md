@@ -74,6 +74,8 @@ For example, to reproduce the full experiments for all MIPLIB instances and conf
 ./script_reproduce_experiments.sh --instances-dir PATH_TO_MIPLIB_INSTANCE_FOLDER --instances-list "./instances/miplip.txt" --configs-list "./settings/settings_list.txt" --num-seeds 3 --time-limit 3600
 ```
 
+# Another Subsection
+## Another Subsection
 **Random Sampling Execution**
 
 The optinal parameter [--percentage-random-sample INTEGER 0-100] determines a percentage of the instances listed in --instances-list that should be randomly selected to run. The default value is 100, case where the full instance set is considered.
