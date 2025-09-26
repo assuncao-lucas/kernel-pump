@@ -47,7 +47,7 @@ The specific instances used from each benchmark are listed in the files:
 - [instances/r-stop-dp.txt](instances/r-stop-dp.txt)
 - [instances/ttp-pv.txt](instances/ttp-pv.txt)
 
-The configurations tested are stored in the [settings/all](settings/all) folder, and listed in [settings/setting_list.txt](settings/settings_list.txt). The raw name of each configuration displayed in the article is displayed as follows:
+The configurations tested are stored in the [settings/all](settings/all) folder, and listed in [settings/setting_list.txt](settings/settings_list.txt). The raw name of each configuration tested in the article is displayed as follows:
 - config1 corresponds to FP<sup>*</sup>
 - config3 corresponds to FP<sup>-</sup>
 - config20 corresponds to FP<sup>+</sup>
