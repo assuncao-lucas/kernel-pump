@@ -3,12 +3,6 @@
 At this moment, the code supports the Feasibility Pump (FP) versions [[1]](#1),[[2]](#2),[[3]](#3),[[4]](#4),[[5]](#5) and the improved method called Kernel Pump (KP).
 This code was developed by adapting and extending the freely available [FeasPumpCollection](https://github.com/GioniMexi/FeasPumpCollection).
 
-**Table of Contents**
-
-[TOCM]
-
-[TOC]
-
 Code overview
 -------------
 
@@ -43,8 +37,10 @@ Is is also possible to overrride config arguments like this:
 ```
 
 Check examples of config files in the folder [settings](settings/all).
+
 Experiments reproduction
 -------------
+
 In the main experiments of the Kernel Pump method, three benchmark of instances were used:
 - [MIPLIB 2017 benchmark](https://miplib.zib.de/downloads/benchmark.zip)
 - [Robust Steiner Team Orienteering Problem instances](https://drive.google.com/file/d/1LPPfpt_mbNgHhu0PWz8pNHT4-Qvi9ACa/view?usp=drive_link)
@@ -77,10 +73,13 @@ For example, to reproduce the full experiments for all MIPLIB instances and conf
 ```
 ./script_reproduce_experiments.sh --instances-dir PATH_TO_MIPLIB_INSTANCE_FOLDER --instances-list "./instances/miplip.txt" --configs-list "./settings/settings_list.txt" --num-seeds 3 --time-limit 3600
 ```
-####Random Sampling Execution
+
+**Random Sampling Execution**
+
 The optinal parameter [--percentage-random-sample INTEGER 0-100] determines a percentage of the instances listed in --instances-list that should be randomly selected to run. The default value is 100, case where the full instance set is considered.
 
-####Results generation
+**Results generation**
+
 In the last step of the script execution, the results of the execution are compiled and stored in a sub-folder within [solutions](solutions). The sub-folder is created during the execution with the current date/timestamp. Aside from a solution file for each combination of *instance x configuration x seed*, other result files are stored in this sub-folder:
 - **sorted_files_list.txt**:  keeps the list of the instances considered in the experiments (specially useful when randomly sampling);
 - **summary.csv**: raw results for each *instance x configuration x seed* execution. Important columns are *status* (which points out if the execution suceeded in findind a feasible solution or not) and *total time* (in seconds);
