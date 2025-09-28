@@ -256,7 +256,7 @@ echo "Summary CSV generated at: $absolute_csv_path"
 # ----------------------------
 # Final step: Build and run results executable
 # ----------------------------
-echo "Entering ./results to build and run results executable..."
+echo "Entering ./results/build to build and run results executable..."
 cd ./results/build
 
 # Build results executable
