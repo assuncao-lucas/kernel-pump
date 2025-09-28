@@ -19,7 +19,7 @@ This project uses CMake. For compiling, perform the following steps on the root 
 - IF YOU NEED TO RUN IN **VERBOSE MODE**, comment line 'add_definitions(-DSILENT_EXEC)' in the main [CMAKELists.txt](CMakeLists.txt) file **BEFORE** executing 'make -j12'.
 - cd ..
 
-* For now, only the CPLEX interface is ready for use.
+For now, only the CPLEX interface is ready for use.
 
 ### Results
 
