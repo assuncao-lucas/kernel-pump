@@ -79,7 +79,7 @@ Script Usage:
 
 For example, to reproduce the full experiments for all MIPLIB instances and configurations tested in the article, one could run:
 ```
-./script_reproduce_experiments.sh --instances-dir PATH_TO_MIPLIB_INSTANCE_FOLDER --instances-list "./instances/miplip.txt" --configs-list "./settings/settings_list.txt" --num-seeds 3 --time-limit 3600
+./script_reproduce_experiments.sh --instances-dir PATH_TO_MIPLIB_INSTANCE_FOLDER --instances-list "./instances/miplib.txt" --configs-list "./settings/settings_list.txt" --num-seeds 3 --time-limit 3600
 ```
 
 ### Random Sampling Execution
