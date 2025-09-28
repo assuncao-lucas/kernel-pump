@@ -14,15 +14,26 @@ This project uses CMake. For compiling, perform the following steps on the root 
 
 - mkdir build
 - cd build
-- cmake -DCMAKE_BUILD_TYPE=Release -S=.. -DCPLEX_ROOT_DIR=/opt/ilog/cos129/cplex -DXPRESSDIR=/opt/fico/xpressmp87 -DSCIP_DIR=/opt/scip..
+- cmake -DCMAKE_BUILD_TYPE=Release -S=.. -DCPLEX_ROOT_DIR=/opt/ibm/ILOG/CPLEX_Studio2211/cplex -DXPRESSDIR=/opt/fico/xpressmp87 -DSCIP_DIR=/opt/scip..
 - make -j12
 - IF YOU NEED TO RUN IN **VERBOSE MODE**, comment line 'add_definitions(-DSILENT_EXEC)' in the main [CMAKELists.txt](CMakeLists.txt) file **BEFORE** executing 'make -j12'.
 
 * For now, only the CPLEX interface is ready for use.
 
+### Results
+
+There is a sub-project dedicated to generating the results summary and LaTeX tables. It should also be compiled similarly as the main project. 
+
+- cd ./results
+- mkdir build
+- cd build
+- cmake -DCMAKE_BUILD_TYPE=Release -S=.. -DCPLEX_ROOT_DIR=/opt/ibm/ILOG/CPLEX_Studio2211/cplex -DXPRESSDIR=/opt/fico/xpressmp87 -DSCIP_DIR=/opt/scip..
+- make -j12
+- cd ..
+
 ## Usage
 
-The execution file is stored in the folder [build](build) after compiled.
+The main execution file is stored in the folder [build](build) after compiled.
 ```
 ./kp PATH_INSTANCE_FILE --config (-c) CONFIG_FILE seed=INTEGER solutionFolder=PATH timeLimit=FLOAT
 ```
