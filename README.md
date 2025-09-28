@@ -17,6 +17,7 @@ This project uses CMake. For compiling, perform the following steps on the root 
 - cmake -DCMAKE_BUILD_TYPE=Release -S=.. -DCPLEX_ROOT_DIR=/opt/ibm/ILOG/CPLEX_Studio2211/cplex -DXPRESSDIR=/opt/fico/xpressmp87 -DSCIP_DIR=/opt/scip..
 - make -j12
 - IF YOU NEED TO RUN IN **VERBOSE MODE**, comment line 'add_definitions(-DSILENT_EXEC)' in the main [CMAKELists.txt](CMakeLists.txt) file **BEFORE** executing 'make -j12'.
+- cd ..
 
 * For now, only the CPLEX interface is ready for use.
 
@@ -29,7 +30,7 @@ There is a sub-project dedicated to generating the results summary and LaTeX tab
 - cd build
 - cmake -DCMAKE_BUILD_TYPE=Release -S=.. -DCPLEX_ROOT_DIR=/opt/ibm/ILOG/CPLEX_Studio2211/cplex -DXPRESSDIR=/opt/fico/xpressmp87 -DSCIP_DIR=/opt/scip..
 - make -j12
-- cd ..
+- cd ../..
 
 ## Usage
 
