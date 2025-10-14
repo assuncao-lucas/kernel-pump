@@ -181,7 +181,7 @@ echo "num-seeds: $num_seeds"
 # ----------------------------
 # Read and process instances
 # ----------------------------
-mapfile -t all_files < "$instances_list"
+mapfile -t all_files < <(grep -v '^[[:space:]]*$' "$instances_list")
 
 # Not random -> all files
 files=("${all_files[@]}")
@@ -197,11 +197,7 @@ done
 # ----------------------------
 # Read configs
 # ----------------------------
-cont=0
-while IFS= read -r LINE_CONF; do
-    configs_vec[$cont]="$LINE_CONF"
-    ((cont++))
-done < "$configs_list"
+mapfile -t configs_vec < <(grep -v '^[[:space:]]*$' "$configs_list")
 
 # ----------------------------
 # Generate summary CSV

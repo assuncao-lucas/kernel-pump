@@ -196,7 +196,8 @@ make -j12
 # ----------------------------
 # Read and process instances
 # ----------------------------
-mapfile -t all_files < "$instances_list"
+mapfile -t all_files < <(grep -v '^[[:space:]]*$' "$instances_list")
+
 
 # Validate percentage_random_sample is integer between 0 and 100
 if ! [[ "$percentage_random_sample" =~ ^[0-9]+$ ]] || (( percentage_random_sample < 0 || percentage_random_sample > 100 )); then
@@ -244,11 +245,7 @@ echo "List of sorted files saved at: $sorted_files_list"
 # ----------------------------
 # Read configs
 # ----------------------------
-cont=0
-while IFS= read -r LINE_CONF; do
-    configs_vec[$cont]="$LINE_CONF"
-    ((cont++))
-done < "$configs_list"
+mapfile -t configs_vec < <(grep -v '^[[:space:]]*$' "$configs_list")
 
 # ----------------------------
 # Run Kernel Pump for all combinations of instances, configs and seeds

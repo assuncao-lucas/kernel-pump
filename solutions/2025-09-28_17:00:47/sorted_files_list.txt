@@ -1,2 +1,0 @@
-peg-solitaire-a3.mps
-rail01.mps
