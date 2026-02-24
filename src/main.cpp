@@ -244,6 +244,8 @@ int main(int argc, char const *argv[])
 			solution.projection_integrality_gap_ = kp.getClosestDist();
 			solution.num_binary_vars_added_ = kp.getNumVarsInKernel();
 			solution.num_binary_vars_with_value_one_ = kp.num_binary_vars_with_value_1_in_solution();
+			solution.num_binary_vars_initial_kernel_ = kp.num_binary_vars_initial_kernel();
+			solution.num_binary_vars_initial_kernel_refined_ = kp.num_binary_vars_initial_kernel_refined();
 			if (foundSolution)
 			{
 				std::tie(solution.real_integrality_gap_, solution.num_frac_) = model->computeIntegralityGap(x, 0.001);

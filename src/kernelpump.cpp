@@ -316,7 +316,7 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
         var_value_red_cost.push_back(VarValueReducedCost{.var_index = var_index, .value = curr_value, .reduced_cost = var_reduced_costs[var_index]});
 
         // only add binary vars with non-zero values.
-        if (greaterThan(curr_value, 0))
+        if (greaterThan(var_values[var_index], 0))
             non_zero_value_binary_vars[var_index] = 1;
     }
 
@@ -391,6 +391,8 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
         }
 
         assert(vars_added == num_binary_vars);
+        num_binary_vars_initial_kernel_ = curr_kernel_bitset_.count();
+        num_binary_vars_initial_kernel_refined_ = curr_kernel_bitset_.count();
     }
     else
     {
@@ -444,6 +446,9 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
                 }
                 curr_bucket_bitset.reset();
             }
+
+            num_binary_vars_initial_kernel_ = curr_kernel_bitset_.count();
+            num_binary_vars_initial_kernel_refined_ = curr_kernel_bitset_.count();
         }
         else
         {
@@ -479,6 +484,7 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
                         if (bucket_count == 0)
                         {
                             curr_kernel_bitset_ = curr_bucket_bitset;
+                            num_binary_vars_initial_kernel_ = curr_kernel_bitset_.count();
                             int total_num_bin_vars_activate_for_feasibility = 0;
                             if (try_enforce_feasibility_initial_kernel_)
                             {
@@ -501,6 +507,7 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
                                 {
                                     // update model activating all current variables in current bucket (kernel).
                                     cloned_model_lp->updateModelVarBounds(curr_kernel_bitset_ - previous_kernel_bitset, std::nullopt);
+
                                     previous_kernel_bitset = curr_kernel_bitset_;
 
                                     auto time_left = std::max(time_limit - kp_watch_.getElapsed(), 0.0);
@@ -588,6 +595,8 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
                                     consoleInfo(" * Found LP feasible initial kernel");
                                 else
                                     consoleWarn(" * Found LP infeasible initial kernel");
+
+                                num_binary_vars_initial_kernel_refined_ = curr_kernel_bitset_.count();
 
                                 //     // restore type information
                                 //     int n = cloned_model_lp->ncols();
