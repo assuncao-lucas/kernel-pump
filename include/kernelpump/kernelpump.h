@@ -67,6 +67,16 @@ public:
         return num_binary_vars_with_value_1_in_solution_;
     }
 
+    int num_binary_vars_initial_kernel() const
+    {
+        return num_binary_vars_initial_kernel_;
+    }
+
+    int num_binary_vars_initial_kernel_refined() const
+    {
+        return num_binary_vars_initial_kernel_refined_;
+    }
+
     void getSolution(std::vector<double> &solution) const;
 
 private:
@@ -96,6 +106,8 @@ private:
     int first_bucket_to_iter_pump_ = -1; // first bucket for which the feasibility pump is able to iterate (find problem LP feasible and not MIP infeasible in the presolve).
     std::vector<double> solution_;
     int num_binary_vars_with_value_1_in_solution_ = 0;
+    int num_binary_vars_initial_kernel_ = 0;
+    int num_binary_vars_initial_kernel_refined_ = 0;
     std::shared_ptr<std::vector<boost::dynamic_bitset<>>> cols_dependency_;
 
     // parameters.

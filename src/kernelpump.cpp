@@ -316,7 +316,7 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
         var_value_red_cost.push_back(VarValueReducedCost{.var_index = var_index, .value = curr_value, .reduced_cost = var_reduced_costs[var_index]});
 
         // only add binary vars with non-zero values.
-        if (greaterThan(curr_value, 0))
+        if (greaterThan(var_values[var_index], 0))
             non_zero_value_binary_vars[var_index] = 1;
     }
 
@@ -328,19 +328,21 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
     //     std::cout << xNames[item.var_index] << " " << item.value << " " << item.reduced_cost << std::endl;
     // }
 
-    auto compare = [invert_ordering_reduced_costs, invert_ordering_values](const VarValueReducedCost &a, const VarValueReducedCost &b)
+    auto compare_value_reduced_cost = [invert_ordering_reduced_costs, invert_ordering_values](const VarValueReducedCost &a, const VarValueReducedCost &b)
     {
-        // if ((a.vertex <= num_mandatory) && (b.vertex > num_mandatory))
-        //     return true;
-        // if ((a.vertex > num_mandatory) && (b.vertex <= num_mandatory))
-        //     return false;
         auto coef_value = invert_ordering_values ? -1 : 1;
         auto coef_red_cost = invert_ordering_reduced_costs ? -1 : 1;
 
         return equal(a.value, b.value) ? coef_red_cost * a.reduced_cost < coef_red_cost * b.reduced_cost : coef_value * a.value < coef_value * b.value;
     };
 
-    std::sort(var_value_red_cost.begin(), var_value_red_cost.end(), compare);
+    auto compare_reduced_cost = [invert_ordering_reduced_costs, invert_ordering_values](const VarValueReducedCost &a, const VarValueReducedCost &b)
+    {
+        auto coef_red_cost = invert_ordering_reduced_costs ? -1 : 1;
+        return coef_red_cost * a.reduced_cost < coef_red_cost * b.reduced_cost;
+    };
+
+    std::sort(var_value_red_cost.begin(), var_value_red_cost.end(), compare_value_reduced_cost);
 
     // std::vector<std::string> xNames;
     // model_->colNames(xNames);
@@ -391,6 +393,8 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
         }
 
         assert(vars_added == num_binary_vars);
+        num_binary_vars_initial_kernel_ = curr_kernel_bitset_.count();
+        num_binary_vars_initial_kernel_refined_ = curr_kernel_bitset_.count();
     }
     else
     {
@@ -407,7 +411,7 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
         auto end_range = first_value + delta_value_per_bucket;
 
         int var_count = 0;
-        double curr_var_value = var_value_red_cost[var_count].value;
+        double curr_var_value = first_value;
         int bucket_count = 0;
 
         // if all variables with same value, add all of them to a same bucket.
@@ -444,9 +448,101 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
                 }
                 curr_bucket_bitset.reset();
             }
+
+            num_binary_vars_initial_kernel_ = curr_kernel_bitset_.count();
+            num_binary_vars_initial_kernel_refined_ = curr_kernel_bitset_.count();
         }
         else
         {
+            // bool NEW_LOGIC = false;
+            // if (NEW_LOGIC)
+            {
+                // redorder the variables in each sub-range according to reduced cost.
+                var_count = 0;
+                int initial_var_count_layer = -1, end_var_count_layer = -1;
+                for (double value_layer = first_value; lessEqualThan(delta_sign * value_layer, delta_sign * last_value); value_layer += delta_value_per_bucket)
+                {
+                    initial_var_count_layer = var_count;
+                    start_range = value_layer;
+                    end_range = start_range + delta_value_per_bucket;
+                    if (lessThan(delta_sign * start_range, delta_sign * last_value))
+                        end_range = start_range + delta_value_per_bucket;
+                    else
+                        end_range = delta_sign * std::numeric_limits<double>::infinity();
+
+                    while (var_count < num_binary_vars && greaterEqualThan(delta_sign * curr_var_value, delta_sign * start_range) && lessThan(delta_sign * curr_var_value, delta_sign * end_range))
+                    {
+                        ++var_count;
+
+                        if (var_count < num_binary_vars)
+                            curr_var_value = var_value_red_cost[var_count].value;
+                        else
+                            break;
+                    }
+
+                    end_var_count_layer = var_count;
+
+                    // means that we reached the last element in the range. Can reorder [initial_var_count_layer,end_var_count_layer] based on reduced costs.
+                    if (end_var_count_layer != initial_var_count_layer)
+                    {
+                        // consoleInfo("initial_var_count_layer: {}, end_var_count_layer: {}", initial_var_count_layer, end_var_count_layer);
+                        // getchar();
+                        // getchar();
+                        auto end_pos_subrange = end_var_count_layer >= num_binary_vars ? var_value_red_cost.end() : var_value_red_cost.begin() + end_var_count_layer;
+                        std::sort(var_value_red_cost.begin() + initial_var_count_layer, end_pos_subrange, compare_reduced_cost);
+                        // std::vector<std::string> xNames;
+                        // model_->colNames(xNames);
+                        // std::cout << "After sorting" << std::endl;
+                        // int num_zero_rc = 0, num_positive_rc = 0, num_negative_rc = 0;
+                        // for (int i = initial_var_count_layer; i < end_var_count_layer; ++i)
+                        // {
+                        //     auto item = var_value_red_cost[i];
+                        //     if (equal(item.value, 0))
+                        //     {
+                        //         if (equal(item.reduced_cost, 0))
+                        //             ++num_zero_rc;
+                        //         if (lessThan(item.reduced_cost, 0))
+                        //             ++num_negative_rc;
+                        //         if (greaterThan(item.reduced_cost, 0))
+                        //             ++num_positive_rc;
+                        //     }
+                        //     std::cout << xNames[item.var_index] << " " << item.value << " " << item.reduced_cost << std::endl;
+                        // }
+                        // consoleInfo("num_zero_rc: {}, num_positive_rc: {}, num_negative_rc: {}", num_zero_rc, num_positive_rc, num_negative_rc);
+                        // getchar();
+                        // getchar();
+                    }
+
+                    if (var_count >= num_binary_vars)
+                        break;
+                }
+            }
+
+            // std::vector<std::string> xNames;
+            // model_->colNames(xNames);
+            // std::cout << "After sorting" << std::endl;
+            // int num_zero_rc = 0, num_positive_rc = 0, num_negative_rc = 0;
+            // for (auto &item : var_value_red_cost)
+            // {
+            //     if (equal(item.value, 0))
+            //     {
+            //         if (equal(item.reduced_cost, 0))
+            //             ++num_zero_rc;
+            //         if (lessThan(item.reduced_cost, 0))
+            //             ++num_negative_rc;
+            //         if (greaterThan(item.reduced_cost, 0))
+            //             ++num_positive_rc;
+            //     }
+            //     std::cout << xNames[item.var_index] << " " << item.value << " " << item.reduced_cost << std::endl;
+            // }
+            // consoleInfo("num_zero_rc: {}, num_positive_rc: {}, num_negative_rc: {}", num_zero_rc, num_positive_rc, num_negative_rc);
+            // getchar();
+            // getchar();
+
+            // fill initial kernel and buckets based on redordering.
+            var_count = 0;
+            curr_var_value = first_value;
+            bucket_count = 0;
             for (double value_layer = first_value; lessEqualThan(delta_sign * value_layer, delta_sign * last_value); value_layer += delta_value_per_bucket)
             {
                 start_range = value_layer;
@@ -479,6 +575,7 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
                         if (bucket_count == 0)
                         {
                             curr_kernel_bitset_ = curr_bucket_bitset;
+                            num_binary_vars_initial_kernel_ = curr_kernel_bitset_.count();
                             int total_num_bin_vars_activate_for_feasibility = 0;
                             if (try_enforce_feasibility_initial_kernel_)
                             {
@@ -501,6 +598,7 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
                                 {
                                     // update model activating all current variables in current bucket (kernel).
                                     cloned_model_lp->updateModelVarBounds(curr_kernel_bitset_ - previous_kernel_bitset, std::nullopt);
+
                                     previous_kernel_bitset = curr_kernel_bitset_;
 
                                     auto time_left = std::max(time_limit - kp_watch_.getElapsed(), 0.0);
@@ -588,6 +686,8 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
                                     consoleInfo(" * Found LP feasible initial kernel");
                                 else
                                     consoleWarn(" * Found LP infeasible initial kernel");
+
+                                num_binary_vars_initial_kernel_refined_ = curr_kernel_bitset_.count();
 
                                 //     // restore type information
                                 //     int n = cloned_model_lp->ncols();

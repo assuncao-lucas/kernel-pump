@@ -21,6 +21,8 @@ public:
 	int num_frac_ = 0; // number of integer/binary variables that are fractional in solution.
 	int num_binary_vars_added_ = -1;
 	int num_binary_vars_with_value_one_ = -1;
+	int num_binary_vars_initial_kernel_ = -1;
+	int num_binary_vars_initial_kernel_refined_ = -1;
 
 	void WriteToFile(std::string folder, std::string config_name, std::string instance_name, uint64_t seed) const;
 };

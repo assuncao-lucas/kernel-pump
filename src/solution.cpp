@@ -42,7 +42,9 @@ void Solution::WriteToFile(std::string folder, std::string config_name, std::str
 	{
 		file << std::endl
 			 << "num bin vars added: " << num_binary_vars_added_ << std::endl
-			 << "num bin vars with value 1: " << num_binary_vars_with_value_one_ << std::endl;
+			 << "num bin vars with value 1: " << num_binary_vars_with_value_one_ << std::endl
+			 << "num bin vars initial kernel: " << num_binary_vars_initial_kernel_ << std::endl
+			 << "num bin vars initial kernel refined: " << num_binary_vars_initial_kernel_refined_ << std::endl;
 	}
 
 	file.close();
