@@ -1,2 +1,0 @@
-ic97_potential.mps
-mcsched.mps
