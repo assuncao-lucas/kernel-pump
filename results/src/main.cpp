@@ -145,6 +145,268 @@ std::string removeExtension(const std::string &filename)
     return filename.substr(0, lastDot);
 }
 
+double StDev(const std::vector<double> &gaps)
+{
+    double stdev = 0.0;
+    double b_avg_gap = 0.0;
+
+    for (size_t i = 0; i < gaps.size(); i++)
+    {
+        b_avg_gap += gaps.at(i);
+    }
+
+    b_avg_gap /= (1.0 * gaps.size());
+
+    for (size_t i = 0; i < gaps.size(); i++)
+    {
+        stdev += pow(gaps.at(i) - b_avg_gap, 2.0);
+    }
+
+    stdev = stdev / (gaps.size() * 1.0 - 1.0);
+    return pow(stdev, 0.5);
+}
+
+void GenerateBoundImprovementLatexTable(std::vector<std::string> inst_list_files, std::string configs_list_file, std::vector<std::string> solutions_folders, int num_seeds)
+{
+    std::string curr_file;
+    std::vector<std::string> configs;
+    std::vector<std::string> seeds;
+
+    for (int seed = 1; seed <= num_seeds; ++seed)
+        seeds.push_back(std::to_string(seed));
+
+    std::ifstream infile(configs_list_file);
+    if (!infile)
+    {
+        throw "Error: Could not open file " + configs_list_file;
+    }
+
+    std::string line;
+
+    while (std::getline(infile, line))
+    {
+        if (!line.empty())
+        {
+            std::string baseName = removeExtension(line);
+            configs.push_back(baseName);
+        }
+    }
+
+    infile.close();
+
+    // Print results for verification
+    std::cout << "Configs considered in results:" << std::endl;
+    for (const auto &name : configs)
+    {
+        std::cout << "  " << name << std::endl;
+    }
+
+    std::fstream output;
+    std::string output_name;
+    output_name = solutions_folders[0] + "//..//bound_improvement.txt";
+
+    output.open(output_name.c_str(), std::fstream::out);
+
+    if (!output.is_open())
+    {
+        std::cout << "Could not open file " << output_name << std::endl;
+        throw 1;
+    }
+
+    // std::cout << output_name << std::endl;
+
+    output << std::setprecision(2) << std::fixed;
+
+    std::vector<std::vector<std::vector<double>>> improvement_per_algo_per_benchmark(solutions_folders.size(), std::vector<std::vector<double>>());
+    std::vector<std::vector<double>> avg_improvement_per_algo_per_benchmark(solutions_folders.size(), std::vector<double>());
+    std::vector<std::vector<double>> std_dev_improvement_per_algo_per_benchmark(solutions_folders.size(), std::vector<double>());
+
+    std::vector<std::vector<std::vector<double>>> original_bound_per_instance_per_seed_per_benchmark(solutions_folders.size(), std::vector<std::vector<double>>());
+
+    for (size_t benchmark = 0; benchmark < solutions_folders.size(); ++benchmark)
+    {
+        std::vector<std::pair<std::string, std::string>> instances;
+        // AddFilesFromDirectory(instances_folder, instances, false);
+        AddFiles(inst_list_files[benchmark], instances);
+
+        std::sort(instances.begin(), instances.end(), [](const auto &a, const auto &b)
+                  { return a.first < b.first; });
+
+        size_t total_num_instances = instances.size();
+        // std::sort(configs.begin(), configs.end());
+
+        // for (const auto &[key, value] : instances_bounds)
+        //     std::cout << key << " " << value << std::endl;
+
+        improvement_per_algo_per_benchmark[benchmark].resize(configs.size(), std::vector<double>());
+        avg_improvement_per_algo_per_benchmark[benchmark].resize(configs.size(), 0.0);
+        std_dev_improvement_per_algo_per_benchmark[benchmark].resize(configs.size(), 0.0);
+
+        original_bound_per_instance_per_seed_per_benchmark[benchmark].resize(total_num_instances, std::vector<double>());
+
+        // Fill original_bound_per_algo_per_instance_per_seed_per_benchmark.
+        for (int i = 0; i < instances.size(); ++i)
+        {
+            original_bound_per_instance_per_seed_per_benchmark[benchmark][i].resize(num_seeds, std::numeric_limits<double>::infinity());
+            auto instance = instances[i];
+
+            for (size_t seed_num = 0; seed_num < num_seeds; ++seed_num)
+            {
+                double curr_bound = std::numeric_limits<double>::infinity();
+                ;
+                curr_file = solutions_folders[benchmark] + "//";
+                curr_file.append("s_");
+                curr_file.append(configs[0]);
+                curr_file.append("_");
+                curr_file.append(instance.first);
+                curr_file.append("_");
+                curr_file.append(seeds[seed_num]);
+                curr_file.append(".sol");
+
+                // std::cout << curr_file << std::endl;
+
+                std::fstream input;
+                input.open(curr_file.c_str(), std::fstream::in);
+
+                if (!input.is_open())
+                {
+                    std::cout << "Could not open file " << curr_file << std::endl;
+                    continue;
+                }
+
+                std::string status;
+                std::string line;
+
+                getline(input, line);
+                size_t pos = line.find_first_of(":");
+                status = line.substr(pos + 2);
+
+                std::string::iterator end_pos = std::remove(status.begin(), status.end(), ' ');
+                status.erase(end_pos, status.end());
+
+                if (status == "FOUNDINTEGERFEASIBLE")
+                {
+                    std::stringstream s_bound;
+                    for (int loop = 0; loop < 8; ++loop)
+                        getline(input, line);
+
+                    pos = line.find_first_of(":");
+                    s_bound << line.substr(pos + 2);
+                    s_bound >> curr_bound;
+                    original_bound_per_instance_per_seed_per_benchmark[benchmark][i][seed_num] = curr_bound;
+                }
+
+                input.close();
+            }
+        }
+
+        for (size_t config_num = 1; config_num < configs.size(); ++config_num)
+        {
+            for (int i = 0; i < instances.size(); ++i)
+            {
+                auto instance = instances[i];
+                double curr_avg_improvement = 0.0;
+
+                for (size_t seed_num = 0; seed_num < num_seeds; ++seed_num)
+                {
+                    double original_bound = original_bound_per_instance_per_seed_per_benchmark[benchmark][i][seed_num];
+                    double curr_bound = std::numeric_limits<double>::infinity();
+                    double curr_improvement = std::numeric_limits<double>::infinity();
+                    curr_file = solutions_folders[benchmark] + "//";
+                    curr_file.append("s_");
+                    curr_file.append(configs[config_num]);
+                    curr_file.append("_");
+                    curr_file.append(instance.first);
+                    curr_file.append("_");
+                    curr_file.append(seeds[seed_num]);
+                    curr_file.append(".sol");
+
+                    // std::cout << curr_file << std::endl;
+
+                    std::fstream input;
+                    input.open(curr_file.c_str(), std::fstream::in);
+
+                    if (!input.is_open())
+                    {
+                        std::cout << "Could not open file " << curr_file << std::endl;
+                        continue;
+                    }
+
+                    std::string status;
+                    std::string line;
+
+                    getline(input, line);
+                    size_t pos = line.find_first_of(":");
+                    status = line.substr(pos + 2);
+
+                    std::string::iterator end_pos = std::remove(status.begin(), status.end(), ' ');
+                    status.erase(end_pos, status.end());
+
+                    if (status == "FOUNDINTEGERFEASIBLE")
+                    {
+                        std::stringstream s_bound;
+                        for (int loop = 0; loop < 8; ++loop)
+                            getline(input, line);
+
+                        pos = line.find_first_of(":");
+                        s_bound << line.substr(pos + 2);
+                        s_bound >> curr_bound;
+                    }
+
+                    if (std::isinf(curr_bound) && !std::isinf(original_bound))
+                        curr_improvement = -100.0;
+                    else if (!std::isinf(curr_bound) && std::isinf(original_bound))
+                        curr_improvement = 100;
+                    else if (std::isinf(curr_bound) && std::isinf(original_bound))
+                        curr_improvement = 0;
+                    else
+                    {
+                        if (equal(original_bound, curr_bound))
+                            curr_improvement = 0.0;
+                        else
+                            curr_improvement = (100 * (original_bound - curr_bound)) / (std::abs(original_bound) + std::abs(curr_bound));
+
+                        // if (lessThan(curr_improvement, 0))
+                        //     std::cout << original_bound << " - " << curr_bound << std::endl;
+                        // if (!double_greater(original_lp, lp))
+                        // 	std::cout << original_lp << " - " << lp << std::endl;
+                    }
+
+                    if (greaterThan(curr_improvement, 100))
+                    {
+                        std::cout << original_bound << " - " << curr_bound << std::endl;
+                        std::cout << curr_improvement << std::endl;
+                    }
+
+                    curr_avg_improvement += curr_improvement;
+
+                    // std::cout << "lp: " << lp << " improvement: " << curr_improvement << std::endl;
+
+                    input.close();
+                }
+                curr_avg_improvement /= (1.0 * num_seeds);
+
+                improvement_per_algo_per_benchmark[benchmark][config_num].push_back(curr_avg_improvement);
+                avg_improvement_per_algo_per_benchmark[benchmark][config_num] += curr_avg_improvement;
+            }
+            avg_improvement_per_algo_per_benchmark[benchmark][config_num] /= (1.0 * total_num_instances);
+            std_dev_improvement_per_algo_per_benchmark[benchmark][config_num] = StDev(improvement_per_algo_per_benchmark[benchmark][config_num]);
+        }
+    }
+
+    for (size_t config_num = 1; config_num < configs.size(); ++config_num)
+    {
+        output << map_config_latex_name[configs[config_num]];
+        for (size_t benchmark = 0; benchmark < solutions_folders.size(); ++benchmark)
+        {
+            output << " & " << avg_improvement_per_algo_per_benchmark[benchmark][config_num] << " & " << std_dev_improvement_per_algo_per_benchmark[benchmark][config_num];
+        }
+        output << std::endl;
+    }
+
+    output.close();
+}
+
 void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_list_file, std::string configs_list_file, std::string solutions_folder, double time_limit, int num_seeds, PerformanceMeasureType type)
 {
     std::string curr_file;
@@ -191,14 +453,31 @@ void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_li
     // for (const auto &[key, value] : instances_bounds)
     //     std::cout << key << " " << value << std::endl;
 
-    std::fstream output;
-    std::string output_name;
+    std::fstream output, output2, output3;
+    std::string output_name, output2_name, output3_name;
     output_name = solutions_folder + "//success_comparison_matrix.txt";
+    output2_name = solutions_folder + "//success_matrix.txt";
+    output3_name = solutions_folder + "//avg_success_matrix.txt";
+
     output.open(output_name.c_str(), std::fstream::out);
+    output2.open(output2_name.c_str(), std::fstream::out);
+    output3.open(output3_name.c_str(), std::fstream::out);
 
     if (!output.is_open())
     {
         std::cout << "Could not open file " << output_name << std::endl;
+        throw 1;
+    }
+
+    if (!output2.is_open())
+    {
+        std::cout << "Could not open file " << output2_name << std::endl;
+        throw 1;
+    }
+
+    if (!output3.is_open())
+    {
+        std::cout << "Could not open file " << output3_name << std::endl;
         throw 1;
     }
 
@@ -209,6 +488,8 @@ void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_li
     int total_num_instances = instances.size();
 
     std::vector<std::vector<PerformanceTuple>> matrix(configs.size());
+    std::vector<std::vector<int>> success_matrix(instances.size());
+    std::vector<std::vector<double>> avg_success_matrix(instances.size());
 
     output << " &";
     for (size_t config_num = 0; config_num < configs.size(); ++config_num)
@@ -222,10 +503,247 @@ void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_li
             output << " \\\\" << std::endl;
     }
 
-    for (const auto instance : instances)
+    for (int i = 0; i < instances.size(); ++i)
     {
+        auto instance = instances[i];
+        success_matrix[i].resize(configs.size(), 0);
+        avg_success_matrix[i].resize(configs.size(), 0.0);
+
         std::vector<std::pair<double, double>> instance_results_per_config(configs.size(), {0, 0});
         for (size_t config_num = 0; config_num < configs.size(); ++config_num)
+        {
+            double avg_time = 0.0, avg_iter = 0.0, avg_success = 0.0;
+            for (size_t seed_num = 0; seed_num < num_seeds; ++seed_num)
+            {
+                curr_file = solutions_folder + "//";
+                curr_file.append("s_");
+                curr_file.append(configs[config_num]);
+                curr_file.append("_");
+                curr_file.append(instance.first);
+                curr_file.append("_");
+                curr_file.append(seeds[seed_num]);
+                curr_file.append(".sol");
+
+                // std::cout << curr_file << std::endl;
+
+                std::fstream input;
+                input.open(curr_file.c_str(), std::fstream::in);
+
+                if (!input.is_open())
+                {
+                    std::cout << "Could not open file " << curr_file << std::endl;
+                    continue;
+                }
+
+                std::stringstream s_time, s_iter;
+                std::string status;
+                double iter = 0.0, total_time = 0.0;
+                std::string line;
+
+                getline(input, line);
+                size_t pos = line.find_first_of(":");
+                status = line.substr(pos + 2);
+
+                std::string::iterator end_pos = std::remove(status.begin(), status.end(), ' ');
+                status.erase(end_pos, status.end());
+
+                getline(input, line);
+                getline(input, line);
+                pos = line.find_first_of(":");
+                s_time << line.substr(pos + 2);
+                s_time >> total_time;
+
+                double tolerance = 10.0;
+                if (greaterThan(total_time, time_limit + tolerance))
+                {
+                    // std::cout << "* " << instance.first << " seed " << seed_num + 1 << " " << configs[config_num] << ", total time of " << total_time << " considered as " << time_limit << std::endl;
+                    total_time = time_limit;
+                }
+
+                total_time = std::min(total_time, time_limit);
+
+                getline(input, line);
+                pos = line.find_first_of(":");
+                s_iter << line.substr(pos + 2);
+                s_iter >> iter;
+
+                avg_time += total_time;
+                avg_iter += iter;
+
+                if (status == "FOUNDINTEGERFEASIBLE")
+                {
+                    avg_success += 1;
+                    success_matrix[i][config_num] = 1;
+                }
+
+                input.close();
+            }
+
+            avg_time /= num_seeds;
+            avg_iter /= num_seeds;
+            avg_success /= num_seeds;
+
+            avg_success_matrix[i][config_num] = avg_success;
+
+            // if (type == PerformanceMeasureType::time)
+            instance_results_per_config[config_num].second = avg_time;
+            // else if (type == PerformanceMeasureType::success)
+            instance_results_per_config[config_num].first = 1.0 - ceil(avg_success);
+        }
+
+        for (size_t i = 0; i < configs.size(); ++i)
+        {
+            for (size_t j = 0; j < configs.size(); ++j)
+            {
+                if (type == PerformanceMeasureType::success)
+                {
+                    if (lessThan(instance_results_per_config[i].first, instance_results_per_config[j].first))
+                    {
+                        matrix[i][j].wins += 1;
+                        // if (configs[i] == "config17" && configs[j] == "config19")
+                        //     std::cout << "!!!!!!!!!!!!!!!!!!" << instance.first << std::endl;
+                    }
+                    else if (equal(instance_results_per_config[i].first, instance_results_per_config[j].first))
+                        matrix[i][j].ties += 1;
+                    else
+                        matrix[i][j].losses += 1;
+                }
+                else if (type == PerformanceMeasureType::time)
+                {
+                    // // only consider the cases where both algorithms succeed in finding a feasible solution
+                    // if (equal(instance_results_per_config[i].first, instance_results_per_config[j].first) && equal(instance_results_per_config[i].first, 0.0))
+                    {
+                        if (lessThan(instance_results_per_config[i].second, instance_results_per_config[j].second))
+                            matrix[i][j].wins += 1;
+                        else if (equal(instance_results_per_config[i].second, instance_results_per_config[j].second))
+                            matrix[i][j].ties += 1;
+                        else
+                            matrix[i][j].losses += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    for (size_t i = 0; i < configs.size(); ++i)
+    {
+        output << map_config_latex_name[configs[i]] << " & ";
+
+        for (size_t j = 0; j < configs.size(); ++j)
+        {
+            if (i == j)
+                output << "{--}";
+            else
+                output << matrix[i][j].wins << "/" /*<< matrix[i][j].ties << "/"*/ << matrix[i][j].losses;
+
+            if (j < configs.size() - 1)
+                output << " & ";
+            else
+                output << " \\\\" << std::endl;
+        }
+    }
+
+    output.close();
+
+    for (int i = 0; i < instances.size(); ++i)
+    {
+        output2 << "[";
+        for (size_t j = 0; j < configs.size(); ++j)
+        {
+            output2 << success_matrix[i][j];
+            if (j < configs.size() - 1)
+                output2 << ",";
+        }
+        output2 << "]";
+        if (i < instances.size() - 1)
+            output2 << ",";
+        output2 << std::endl;
+    }
+
+    output2 << std::endl;
+    output2 << "[";
+    for (size_t j = 0; j < configs.size(); ++j)
+    {
+        output2 << "\"" << map_config_latex_name[configs[j]] << "\"";
+        if (j < configs.size() - 1)
+            output2 << ",";
+    }
+    output2 << "]" << std::endl;
+
+    output2.close();
+
+    for (int i = 0; i < instances.size(); ++i)
+    {
+        output3 << "[";
+        for (size_t j = 0; j < configs.size(); ++j)
+        {
+            output3 << avg_success_matrix[i][j];
+            if (j < configs.size() - 1)
+                output3 << ",";
+        }
+        output3 << "]";
+        if (i < instances.size() - 1)
+            output3 << ",";
+        output3 << std::endl;
+    }
+
+    output3 << std::endl;
+    output3 << "[";
+    for (size_t j = 0; j < configs.size(); ++j)
+    {
+        output3 << "\"" << map_config_latex_name[configs[j]] << "\"";
+        if (j < configs.size() - 1)
+            output3 << ",";
+    }
+    output3 << "]" << std::endl;
+
+    output3.close();
+}
+
+void GeneratePerformanceECDF(std::string instances_folder, std::string inst_list_file, std::string solutions_folder, double time_limit, PerformanceMeasureType type)
+{
+    std::string curr_file;
+    std::vector<std::pair<std::string, std::string>> instances;
+    std::vector<std::string> configs{
+        "config1", "config16", "config17", "config21", "config23", "config18"};
+    std::vector<std::string>
+        seeds{"1", "2", "3"};
+    int num_seeds = seeds.size();
+
+    // AddFilesFromDirectory(instances_folder, instances, false);
+    AddFiles(inst_list_file, instances);
+
+    std::sort(instances.begin(), instances.end(), [](const auto &a, const auto &b)
+              { return a.first < b.first; });
+    // std::sort(configs.begin(), configs.end());
+
+    // for (const auto &[key, value] : instances_bounds)
+    //     std::cout << key << " " << value << std::endl;
+
+    std::fstream output;
+    std::string output_name;
+    output_name = (type == PerformanceMeasureType::time) ? "..//tables//latex//performance_ecdf_time.txt" : "..//tables//latex//performance_ecdf_success.txt";
+    output.open(output_name.c_str(), std::fstream::out);
+    std::vector<double> all_instances_avgs;
+
+    if (!output.is_open())
+    {
+        std::cout << "Could not open file " << output_name << std::endl;
+        throw 1;
+    }
+
+    // std::cout << output_name << std::endl;
+
+    output << std::setprecision(4) << std::fixed;
+
+    int total_num_instances = instances.size();
+
+    for (size_t config_num = 0; config_num < configs.size(); ++config_num)
+    {
+        output << map_config_latex_name[configs[config_num]] << " ";
+
+        all_instances_avgs.clear();
+        for (const auto instance : instances)
         {
             double avg_time = 0.0, avg_iter = 0.0, avg_success = 0.0;
             for (size_t seed_num = 0; seed_num < num_seeds; ++seed_num)
@@ -297,62 +815,20 @@ void GeneratePerformanceMatrix(std::string instances_folder, std::string inst_li
             avg_iter /= num_seeds;
             avg_success /= num_seeds;
 
-            // if (type == PerformanceMeasureType::time)
-            instance_results_per_config[config_num].second = avg_time;
-            // else if (type == PerformanceMeasureType::success)
-            instance_results_per_config[config_num].first = 1.0 - ceil(avg_success);
+            if (type == PerformanceMeasureType::time)
+                all_instances_avgs.push_back(std::min(avg_time, time_limit));
+            else if (type == PerformanceMeasureType::success)
+                all_instances_avgs.push_back(avg_success);
         }
 
-        for (size_t i = 0; i < configs.size(); ++i)
+        // Sort ascending (least to greatest)
+        std::sort(all_instances_avgs.begin(), all_instances_avgs.end());
+        for (size_t i = 0; i < all_instances_avgs.size() - 1; ++i)
         {
-            for (size_t j = 0; j < configs.size(); ++j)
-            {
-                if (type == PerformanceMeasureType::success)
-                {
-                    if (lessThan(instance_results_per_config[i].first, instance_results_per_config[j].first))
-                    {
-                        matrix[i][j].wins += 1;
-                        // if (configs[i] == "config17" && configs[j] == "config19")
-                        //     std::cout << "!!!!!!!!!!!!!!!!!!" << instance.first << std::endl;
-                    }
-                    else if (equal(instance_results_per_config[i].first, instance_results_per_config[j].first))
-                        matrix[i][j].ties += 1;
-                    else
-                        matrix[i][j].losses += 1;
-                }
-                else if (type == PerformanceMeasureType::time)
-                {
-                    // // only consider the cases where both algorithms succeed in finding a feasible solution
-                    // if (equal(instance_results_per_config[i].first, instance_results_per_config[j].first) && equal(instance_results_per_config[i].first, 0.0))
-                    {
-                        if (lessThan(instance_results_per_config[i].second, instance_results_per_config[j].second))
-                            matrix[i][j].wins += 1;
-                        else if (equal(instance_results_per_config[i].second, instance_results_per_config[j].second))
-                            matrix[i][j].ties += 1;
-                        else
-                            matrix[i][j].losses += 1;
-                    }
-                }
-            }
+            output << "(" << all_instances_avgs[i] << "," << (i + 1) * 1.0 / all_instances_avgs.size() << ") ";
         }
-    }
 
-    for (size_t i = 0; i < configs.size(); ++i)
-    {
-        output << map_config_latex_name[configs[i]] << " & ";
-
-        for (size_t j = 0; j < configs.size(); ++j)
-        {
-            if (i == j)
-                output << "{--}";
-            else
-                output << matrix[i][j].wins << "/" << matrix[i][j].ties << "/" << matrix[i][j].losses;
-
-            if (j < configs.size() - 1)
-                output << " & ";
-            else
-                output << " \\\\" << std::endl;
-        }
+        output << "(" << all_instances_avgs[all_instances_avgs.size() - 1] << "," << 1.0 << ")" << std::endl;
     }
 
     output.close();
@@ -365,7 +841,7 @@ void GeneratePerformanceProfile(std::string instances_folder, std::string inst_l
     std::vector<std::string> configs{
         "config1", "config16", "config17", "config21", "config23", "config18"};
     std::vector<std::string>
-        seeds{"1", "2", "3", "4", "5"};
+        seeds{"1", "2", "3"};
     int num_seeds = seeds.size();
 
     // AddFilesFromDirectory(instances_folder, instances, false);
@@ -489,27 +965,6 @@ void GeneratePerformanceProfile(std::string instances_folder, std::string inst_l
     }
 
     output.close();
-}
-
-double StDev(const std::vector<double> &gaps)
-{
-    double stdev = 0.0;
-    double b_avg_gap = 0.0;
-
-    for (size_t i = 0; i < gaps.size(); i++)
-    {
-        b_avg_gap += gaps.at(i);
-    }
-
-    b_avg_gap /= (1.0 * gaps.size());
-
-    for (size_t i = 0; i < gaps.size(); i++)
-    {
-        stdev += pow(gaps.at(i) - b_avg_gap, 2.0);
-    }
-
-    stdev = stdev / (gaps.size() * 1.0 - 1.0);
-    return pow(stdev, 0.5);
 }
 
 void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::string inst_list_file, std::string configs_list_file, std::string solutions_folder, std::string best_known_bounds_csv, double time_limit, int num_seeds)
@@ -653,10 +1108,12 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
     std::vector<double> total_percentage_first_feasible_bucket_per_config(configs.size(), 0.0);
     std::vector<double> total_percentage_added_vars_per_config(configs.size(), 0.0);
     std::vector<double> total_percentage_active_vars_per_config(configs.size(), 0.0);
+    std::vector<double> total_percentage_initial_vars_per_config(configs.size(), 0.0);
     std::vector<double> num_instances_discarded_from_obj_gap_computation_per_config(configs.size(), 0);
 
     std::vector<std::vector<double>> percentage_visited_buckets_per_config(configs.size());
     std::vector<std::vector<double>> percentage_added_vars_per_config(configs.size());
+    std::vector<std::vector<double>> percentage_initial_vars_per_config(configs.size());
     std::vector<std::vector<double>> percentage_active_vars_per_config(configs.size());
 
     int total_num_instances = instances.size();
@@ -690,6 +1147,7 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
             double avg_time = 0.0, avg_iter = 0.0, avg_proj_gap = 0.0, avg_actual_gap = 0.0, avg_success = 0.0, avg_num_frac = 0.0, avg_obj_gap = 0.0;
             double avg_percentage_visited_buckets = 0.0, avg_percentage_first_feasible_bucket = 0.0;
             double avg_percentage_added_vars = 0.0, avg_percentage_active_vars = 0.0;
+            double avg_percentage_initial_vars = 0.0;
             int num_exec_discarded_from_obj_gap_computation = 0;
             double obj_gap = 0.0;
             for (size_t seed_num = 0; seed_num < num_seeds; ++seed_num)
@@ -715,11 +1173,11 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
                 }
 
                 std::stringstream s_time, s_iter, s_num_buckets, s_last_visited_bucket, s_first_feasible_bucket, s_proj_gap, s_actual_gap, s_num_frac, s_obj_value;
-                std::stringstream s_num_added_bin_vars, s_num_active_bin_vars;
+                std::stringstream s_num_added_bin_vars, s_num_active_bin_vars, s_num_initial_bin_vars;
                 std::string status;
                 double iter = 0.0, total_time = 0.0, time_build = 0.0, proj_gap = 0.0, actual_gap = 0.0, num_frac = 0.0, obj_value;
                 double num_buckets = 0.0, last_visited_bucket = 0.0, first_feasible_bucket = 0.0;
-                double num_added_bin_vars = 0.0, num_active_bin_vars = 0.0;
+                double num_added_bin_vars = 0.0, num_active_bin_vars = 0.0, num_initial_bin_vars = 0.0;
                 std::string line;
 
                 getline(input, line);
@@ -814,6 +1272,19 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
                     }
                 }
 
+                if (getline(input, line))
+                {
+                    if (getline(input, line))
+                    {
+                        if (!line.empty())
+                        {
+                            pos = line.find_first_of(":");
+                            s_num_initial_bin_vars << line.substr(pos + 2);
+                            s_num_initial_bin_vars >> num_initial_bin_vars;
+                        }
+                    }
+                }
+
                 avg_time += total_time;
                 avg_iter += iter;
                 avg_proj_gap += 100.0 * (proj_gap / num_integer_and_binary_vars);
@@ -843,6 +1314,15 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
                     avg_percentage_visited_buckets += 100.0 * ((last_visited_bucket == -1 || last_visited_bucket == num_buckets) ? 1.0 : (last_visited_bucket + 1) / (num_buckets + 1));
                     avg_percentage_active_vars += (num_binary_vars == 0) ? 100.0 : 100.0 * num_active_bin_vars / num_binary_vars;
                     avg_percentage_added_vars += (num_binary_vars == 0) ? 100.0 : 100.0 * num_added_bin_vars / num_binary_vars;
+                    auto curr_percentage_initial_vars = (num_binary_vars == 0) ? 100.0 : 100.0 * num_initial_bin_vars / num_binary_vars;
+                    avg_percentage_initial_vars += curr_percentage_initial_vars;
+
+                    if (greaterThan(curr_percentage_initial_vars, 100.0))
+                    {
+                        std::cout << instance.first + instance.second << " " << curr_percentage_initial_vars << "=" << num_initial_bin_vars << "/" << num_binary_vars << std::endl;
+                        getchar();
+                        getchar();
+                    }
                 }
                 else
                 {
@@ -850,6 +1330,7 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
                     // std::cout << " *** discarded from obj gap computation due to failure in finding integer solution" << std::endl;
                 }
                 avg_obj_gap += obj_gap;
+
                 // std::cout << "config " << config_num << " gap: " << obj_gap << std::endl;
 
                 input.close();
@@ -861,15 +1342,18 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
                 avg_percentage_active_vars /= (num_seeds - num_exec_discarded_from_obj_gap_computation);
                 avg_percentage_added_vars /= (num_seeds - num_exec_discarded_from_obj_gap_computation);
                 avg_percentage_visited_buckets /= (num_seeds - num_exec_discarded_from_obj_gap_computation);
+                avg_percentage_initial_vars /= (num_seeds - num_exec_discarded_from_obj_gap_computation);
 
                 total_obj_gap_per_config[config_num] += avg_obj_gap;
                 total_percentage_added_vars_per_config[config_num] += avg_percentage_added_vars;
                 total_percentage_active_vars_per_config[config_num] += avg_percentage_active_vars;
                 total_percentage_visited_buckets_per_config[config_num] += avg_percentage_visited_buckets;
+                total_percentage_initial_vars_per_config[config_num] += avg_percentage_initial_vars;
 
                 percentage_added_vars_per_config[config_num].push_back(avg_percentage_added_vars);
                 percentage_active_vars_per_config[config_num].push_back(avg_percentage_active_vars);
                 percentage_visited_buckets_per_config[config_num].push_back(avg_percentage_visited_buckets);
+                percentage_initial_vars_per_config[config_num].push_back(avg_percentage_initial_vars);
             }
             else // if execution of that instance discarded for all seeds, do not take it into account in the total computation.
             {
@@ -878,6 +1362,7 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
                 avg_percentage_active_vars = -1.0;
                 avg_percentage_added_vars = -1.0;
                 avg_percentage_visited_buckets = -1.0;
+                avg_percentage_initial_vars = -1.0;
             }
             avg_time /= num_seeds;
             avg_iter /= num_seeds;
@@ -928,7 +1413,9 @@ void GenerateAlgorithmsCSVAndLatexTable(std::string instances_folder, std::strin
         if (map_algo_is_kernel_pump.find(configs[config_num]) != map_algo_is_kernel_pump.end())
         {
             output3 << map_config_latex_name[configs[config_num]] << " && "
-                    << total_percentage_visited_buckets_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num])
+                    << total_percentage_initial_vars_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num])
+                    << " & " << StDev(percentage_initial_vars_per_config[config_num])
+                    << " & " << total_percentage_visited_buckets_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num])
                     << " & " << StDev(percentage_visited_buckets_per_config[config_num])
                     << " & " << total_percentage_added_vars_per_config[config_num] / (total_num_instances - num_instances_discarded_from_obj_gap_computation_per_config[config_num])
                     << " & " << StDev(percentage_added_vars_per_config[config_num])
@@ -1018,10 +1505,24 @@ void ParseArgumentsAndRun(int argc, char *argv[])
         }
     }
 
-    GenerateAlgorithmsCSVAndLatexTable(inst_folder, inst_list_file, configs_list_file, solutions_folder, best_known_bounds_csv, time_limit, num_seeds);
+    // GenerateAlgorithmsCSVAndLatexTable(inst_folder, inst_list_file, configs_list_file, solutions_folder, best_known_bounds_csv, time_limit, num_seeds);
 
     // GeneratePerformanceProfile(inst_folder, inst_list_file, solutions_folder, time_limit, PerformanceMeasureType::time);
-    GeneratePerformanceMatrix(inst_folder, inst_list_file, configs_list_file, solutions_folder, time_limit, num_seeds, PerformanceMeasureType::success);
+    // GeneratePerformanceECDF(inst_folder, inst_list_file, solutions_folder, time_limit, PerformanceMeasureType::time);
+    // GeneratePerformanceECDF(inst_folder, inst_list_file, solutions_folder, time_limit, PerformanceMeasureType::success);
+    // GeneratePerformanceMatrix(inst_folder, inst_list_file, configs_list_file, solutions_folder, time_limit, num_seeds, PerformanceMeasureType::success);
+
+    std::vector<std::string> inst_list_files{
+        "../../instances/miplib.txt",
+        "../../instances/r-stop-dp.txt",
+        "../../instances/ttp-pv.txt"};
+
+    std::vector<std::string> solutions_folders{
+        "../../solutions/miplib_5seeds_bugfix/",
+        "../../solutions/r-stop-dp_5seeds_bugfix/",
+        "../../solutions/ttp-pv_5seeds_bugfix/"};
+
+    GenerateBoundImprovementLatexTable(inst_list_files, configs_list_file, solutions_folders, num_seeds);
 }
 
 int main(int argc, char *argv[])
