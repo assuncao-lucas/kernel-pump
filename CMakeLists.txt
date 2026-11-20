@@ -5,6 +5,11 @@ add_definitions(-DSILENT_EXEC)
 cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
+
+if (WIN32)
+  # <windows.h> defines min/max macros that break std::numeric_limits<T>::max() etc.
+  add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS)
+endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -55,6 +60,9 @@ find_package(SCIP)
 
 # Find ORTOOLS library
 find_package(ORTOOLS)
+
+# Find GUROBI library (optional; building and linking need no license)
+find_package(GUROBI)
 
 # Find Threads
 find_package(Threads)
@@ -116,21 +124,25 @@ if (ORTOOLS_FOUND)
   target_link_libraries(libkp PUBLIC Pdlp::Pdlp)
 endif()
 
+if (GUROBI_FOUND)
+  target_compile_definitions(libkp PUBLIC HAS_GUROBI=1)
+  target_compile_definitions(kp PUBLIC HAS_GUROBI=1)
+  target_sources(libkp PRIVATE src/grbmodel.cpp)
+  target_link_libraries(libkp PUBLIC Gurobi::Gurobi)
+  # interface tests on toy models (run with an explicit license file; see tests/grbmodel_test.cpp)
+  add_executable(grbmodel_test tests/grbmodel_test.cpp)
+  target_link_libraries(grbmodel_test PRIVATE Kp::Lib)
+  if (WIN32 AND GUROBI_RUNTIME_LIBRARY)
+    # copy the DLL next to the executable so runs do not depend on PATH
+    add_custom_command(TARGET kp POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${GUROBI_RUNTIME_LIBRARY}" "$<TARGET_FILE_DIR:kp>")
+  endif()
+endif()
+
 # Generate version.h
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/include/kernelpump/version.h.in
   ${CMAKE_CURRENT_SOURCE_DIR}/include/kernelpump/version.h
 )
-
-find_package(Eigen3 QUIET)
-if (NOT Eigen3_FOUND)
-  if (UNIX)
-    set(EIGEN3_INCLUDE_DIR "/usr/include/eigen3" CACHE PATH "Path to Eigen3 headers")
-  else()
-    set(EIGEN3_INCLUDE_DIR "" CACHE PATH "Path to Eigen3 headers")
-  endif()
-endif()
-include_directories ("${EIGEN3_INCLUDE_DIR}")
 
 # Add subprojects
 if (GIT_FOUND AND MASTER_PROJECT)

@@ -15,13 +15,28 @@ result tables/statistics for an accompanying research article.
 
 | Requirement | Notes |
 | --- | --- |
-| C++17 compiler | GCC 15 works. Headers must include `<cstdint>`/`<string>` explicitly — newer libstdc++ no longer pulls them in transitively. |
+| C++17 compiler | GCC 15 and MSVC 2022 (v143) both work. Code must be **strict** C++17: no `std::random_shuffle`/`std::unary_function` (removed in C++17, MSVC enforces it), no designated initializers (C++20; GCC only accepts them as an extension). Headers must include `<cstdint>`/`<string>` explicitly — newer libstdc++ no longer pulls them in transitively. |
 | CMake ≥ 3.10 | CMake 4.x removed compatibility with `cmake_minimum_required` below 3.5, so all subprojects (including vendored `extern/fmt`) declare ≥ 3.10. |
-| Boost headers (`libboost-dev`) | **Header-only**, no compiled Boost libs are linked. Only `boost/dynamic_bitset.hpp` and `boost/iterator/iterator_facade.hpp` are used. A missing `libboost-dev` is the most common cause of a failing fresh clone. |
-| Eigen3 | Located via `find_package(Eigen3)`, falling back to the `EIGEN3_INCLUDE_DIR` cache variable (defaults to `/usr/include/eigen3` on Unix). Override with `-DEIGEN3_INCLUDE_DIR=...`. |
-| CPLEX | The only functional solver backend. Pass `-DCPLEX_ROOT_DIR=...`. |
+| Boost headers | **Header-only**, found with `find_package(Boost CONFIG)` in `extern/utils` and propagated via `Boost::headers`. Only `boost/dynamic_bitset.hpp` and `boost/iterator/iterator_facade.hpp` are used. |
+| zlib | Required by `extern/utils` (`ZLIB::ZLIB`). |
+| CPLEX | The reference solver backend. Pass `-DCPLEX_ROOT_DIR=...`. On Windows the lib format defaults to `x64_windows_msvc14/stat_mda` (dynamic CRT, `/MD`), which is why vcpkg uses the `x64-windows-static-md` triplet. |
+| Gurobi (optional) | `solver=grb` backend (`src/grbmodel.cpp`, C API only), found via `GUROBI_HOME` (`cmake/modules/FindGUROBI.cmake`) → `HAS_GUROBI`. Building/linking needs no license; the DLL is copied next to `kp.exe`. At run time `GRBModel` **refuses to start unless `grb.licenseFile=<path>` is given** (it then sets `GRB_LICENSE_FILE` for the process), so a user-level license is never picked up implicitly; `grb.requireLicenseFile=0` disables that guard. MIP presolve is not supported yet (no crush/uncrush in Gurobi's C API): `presolve()` reports no reductions and FP/KP run on the original model. |
 
-On Debian/Ubuntu: `sudo apt install libboost-dev libeigen3-dev cmake build-essential`.
+On Debian/Ubuntu: `sudo apt install libboost-dev zlib1g-dev cmake build-essential`.
+
+On Windows: Visual Studio Build Tools 2022 (C++ workload), CMake, Ninja and [vcpkg](https://github.com/microsoft/vcpkg)
+with the `VCPKG_ROOT` env var set. Dependencies are declared in `vcpkg.json` (manifest mode) and installed
+automatically at configure time. Configure from a VS Developer shell (or VS Code with CMake Tools, which
+picks up `CMakePresets.json`):
+
+```powershell
+cmake --preset windows-release -DCPLEX_ROOT_DIR="C:/Program Files/IBM/ILOG/CPLEX_Studio2211/cplex"
+cmake --build build
+```
+
+`WIN32` builds define `NOMINMAX` (`<windows.h>` `min`/`max` macros otherwise break `std::numeric_limits<T>::max()`).
+The batch `.sh` scripts run under Git Bash; they rebuild with `cmake --build`, which needs the MSVC environment
+if anything is out of date.
 
 Two independent CMake projects share the same solver-detection machinery: the root project (`kp` executable +
 `libkp` static lib) and `results/` (a separate `results` executable for aggregating solution files into tables).
@@ -55,8 +70,7 @@ make -j12
 cd ../..
 ```
 
-Eigen3 is resolved via `find_package(Eigen3)` with an `EIGEN3_INCLUDE_DIR` cache-variable fallback (see the
-bottom of both `CMakeLists.txt` files). `libkp`, `results`, and `kp` are all whole-archive-linked against the vendored
+`libkp`, `results`, and `kp` are all whole-archive-linked against the vendored
 `extern/fmt`, `extern/utils` (`Utils::Lib`), and `extern/propagator` (`Prop::Lib`) subprojects, which are pulled
 in via `add_subdirectory` only when this is the master (top-level) CMake project.
 

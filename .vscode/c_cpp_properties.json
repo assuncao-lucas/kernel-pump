@@ -1,7 +1,25 @@
 {
     "configurations": [
         {
+            "name": "Win32",
+            "configurationProvider": "ms-vscode.cmake-tools",
+            "includePath": [
+                "${default}",
+                "${workspaceFolder}/extern/utils/include",
+                "${workspaceFolder}/extern/fmt/include",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/extern/propagator/include",
+                "${workspaceFolder}/build/vcpkg_installed/x64-windows-static-md/include",
+                "${workspaceFolder}"
+            ],
+            "defines": ["NOMINMAX", "WIN32_LEAN_AND_MEAN", "_CRT_SECURE_NO_WARNINGS"],
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        },
+        {
             "name": "Linux",
+            "configurationProvider": "ms-vscode.cmake-tools",
             "includePath": [
                 "${default}",
                 "/opt/ibm/ILOG/CPLEX_Studio2211/cplex/include",

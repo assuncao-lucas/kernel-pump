@@ -257,7 +257,7 @@ cd ./results/build
 
 # Build results executable
 echo "Building results executable..."
-make -j12
+cmake --build . -j 12
 
 # Reconstruct arguments (absolute paths, excluding random sampling flags)
 results_args=( 

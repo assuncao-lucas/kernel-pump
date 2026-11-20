@@ -313,7 +313,7 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
     {
         // std::cout << var_values[var_index] << std::endl;
         auto curr_value = sort_by_fractional_part_ ? fabs(round(var_values[var_index]) - var_values[var_index]) : var_values[var_index];
-        var_value_red_cost.push_back(VarValueReducedCost{.var_index = var_index, .value = curr_value, .reduced_cost = var_reduced_costs[var_index]});
+        var_value_red_cost.push_back(VarValueReducedCost{/*var_index*/ var_index, /*value*/ curr_value, /*reduced_cost*/ var_reduced_costs[var_index]});
 
         // only add binary vars with non-zero values.
         if (greaterThan(var_values[var_index], 0))

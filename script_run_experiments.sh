@@ -191,7 +191,7 @@ cd ./build
 
 # Build executable
 echo "Building executable..."
-make -j12
+cmake --build . -j 12
 
 # ----------------------------
 # Read and process instances

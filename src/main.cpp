@@ -39,6 +39,9 @@
 #if defined(HAS_SCIP) && defined(HAS_ORTOOLS)
 #include "kernelpump/pdlpmodel.h"
 #endif
+#ifdef HAS_GUROBI
+#include "kernelpump/grbmodel.h"
+#endif
 #include <fmt/format.h>
 
 // macro type savers
@@ -141,6 +144,19 @@ int main(int argc, char const *argv[])
 		model = MIPModelPtr(new PDLPModel());
 #else
 	if (solver == "pdlp")
+		throw std::runtime_error(fmt::format("Did not compile support for solver {}", solver));
+#endif
+#ifdef HAS_GUROBI
+	if (solver == "grb")
+	{
+		// The license is always chosen explicitly: by default GRBModel refuses to fall back
+		// on whatever GRB_LICENSE_FILE the user environment points to.
+		std::string grbLicenseFile = gConfig().get("grb.licenseFile", std::string(""));
+		bool grbRequireLicenseFile = gConfig().get("grb.requireLicenseFile", true);
+		model = MIPModelPtr(new GRBModel(grbLicenseFile, grbRequireLicenseFile));
+	}
+#else
+	if (solver == "grb")
 		throw std::runtime_error(fmt::format("Did not compile support for solver {}", solver));
 #endif
 

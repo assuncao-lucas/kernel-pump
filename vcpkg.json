@@ -1,0 +1,11 @@
+{
+  "name": "kernel-pump",
+  "version-string": "1.0",
+  "description": "Kernel Pump / Feasibility Pump MIP heuristics",
+  "builtin-baseline": "86953231229b6fce274ed06aab196c1220027cfc",
+  "dependencies": [
+    "boost-dynamic-bitset",
+    "boost-iterator",
+    "zlib"
+  ]
+}

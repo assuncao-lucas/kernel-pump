@@ -249,7 +249,7 @@ namespace dominiqs
 	 * divided by n - 1, otherwise by n
 	 */
 
-	class IncrementalVariance : public std::unary_function<double, void>
+	class IncrementalVariance
 	{
 	public:
 		IncrementalVariance() : cnt(0), mean(0.0), sumsq(0.0) {}
