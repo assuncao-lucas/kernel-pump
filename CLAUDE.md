@@ -171,6 +171,22 @@ land in `solutions/<run>/s_<config>_<instance>_<seed>.sol`, alongside `sorted_fi
 instance list actually used, useful for reproducing random samples) and `summary.csv` (one row per
 instance × config × seed with `status` and `total time` as the key columns).
 
+## The published paper
+
+The method implemented here is published, open access:
+
+> Lucas Assunção, Sebastián Urrutia, Andréa Cynthia Santos. **Kernel pump: Boosting the convergence
+> of the feasibility pump through a kernel search-based decomposition.** *Mathematical Programming
+> Computation*, 2026. <https://doi.org/10.1007/s12532-026-00333-2> (CC BY 4.0)
+
+`papers/` holds the FP-family prior art it builds on (FP, FP 2.0, Boosting FP, multiple reference
+vectors, Feasibility Jump, fix-propagate-repair, kernel search). The **`kernel-pump-literature`
+skill** maps the paper's algorithm and parameters onto the `kp.*`/`fp.*` keys, records which
+variants the authors already tested and rejected, marks which code paths are published versus
+experimental, and states the experimental protocol a new result must match. Consult it before
+designing any algorithmic change — `README.md` maps the article's FP*/FP-/FP+/KP*/KP-/KP+ naming
+onto config numbers.
+
 ## Architecture
 
 `src/main.cpp` is the single CLI entry point. It parses args/config (`gConfig()`, `dominiqs` utils), constructs

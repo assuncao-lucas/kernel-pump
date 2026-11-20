@@ -12,6 +12,11 @@ a MIP — neither is an optimiser. Built by extending the public FeasPumpCollect
 Everything below was derived by reading the implementation. Where behaviour is surprising, the
 file:line is given so you can re-verify rather than trust this document.
 
+> **Before changing the method itself**, read the `kernel-pump-literature` skill. Some of what looks
+> surprising here is the *published* method (notably the globally shared iteration budget), and
+> several plausible-sounding improvements were already tried and rejected by the authors. That skill
+> holds the paper of record, the variant↔config mapping and the prior art.
+
 ## The one thing to understand first
 
 A "kernel" is **not** a submodel. Variables are never added or removed. KP works entirely by
