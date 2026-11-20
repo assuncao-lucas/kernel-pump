@@ -1,7 +1,7 @@
 STATUS: FOUND INTEGER FEASIBLE
-time building kernel and buckets (s): 0.324216
-total time (s): 2.700447
-# iterations: 25
+time building kernel and buckets (s): 0.509845
+total time (s): 2.915330
+# iterations: 17
 # buckets: 12
 last bucket visited: 1
 first bucket to iter pump: 0

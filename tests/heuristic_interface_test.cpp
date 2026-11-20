@@ -341,6 +341,32 @@ int main(int argc, char const *argv[])
 		}
 
 		/* ============================================================== *
+		 * 1b. name resolution -- what main.cpp uses to dispatch method=
+		 *     and to validate kp.heuristic
+		 * ============================================================== */
+		section("name resolution (method= and kp.heuristic)");
+		{
+			check(resolveHeuristicName("feaspump") == "feaspump", "exact name resolves");
+			// main.cpp used to upper-case method= before comparing, so every casing must keep working
+			check(resolveHeuristicName("FEASPUMP") == "feaspump", "upper case resolves (method=FEASPUMP)");
+			check(resolveHeuristicName("FeasPump") == "feaspump", "mixed case resolves (method=FeasPump)");
+			check(resolveHeuristicName("nope").empty(), "unknown name resolves to empty");
+			check(resolveHeuristicName("").empty(), "empty name resolves to empty");
+
+			// a heuristic registered by this test is dispatchable exactly like feaspump, which is
+			// the whole point of M6: a new heuristic needs no change to main.cpp or KernelPump
+			check(resolveHeuristicName("test-scripted") == "test-scripted",
+				  "a newly registered heuristic resolves too (no main.cpp change needed)");
+			check(resolveHeuristicName("TEST-SCRIPTED") == "test-scripted",
+				  "...and does so case-insensitively");
+
+			const std::string names = registeredHeuristicNames();
+			check(names.find("feaspump") != std::string::npos &&
+					  names.find("test-scripted") != std::string::npos,
+				  "registeredHeuristicNames() lists them for error messages");
+		}
+
+		/* ============================================================== *
 		 * 2. interface defaults match FeasibilityPump::pump()'s defaults
 		 * ============================================================== */
 		section("defaults");

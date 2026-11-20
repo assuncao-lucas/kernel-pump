@@ -118,7 +118,9 @@ the embedded hash to be current.
 Any config key can be overridden inline: `./build/kp instance.mps -c config.cfg kp.maxBucketSize=20`.
 
 `method=` (in the config or as an override) selects the code path in `src/main.cpp`: `solver` (plain
-CPLEX MIP solve), `feaspump`, or `kernelpump`. Config files live in `settings/all/*.cfg` and are grouped/listed
+CPLEX MIP solve), `kernelpump`, or **the name of any registered feasibility heuristic** to run it
+standalone over the whole problem — `feaspump` is one such name, and is the only one registered today.
+Matching is case-insensitive. Config files live in `settings/all/*.cfg` and are grouped/listed
 in `settings/settings_list.txt`. `fp.*` keys configure `FeasibilityPump`, `kp.*` keys configure `KernelPump`;
 see any file under `settings/all` for the full key set. `TESTSET.md` documents what each numbered config
 (config1…config25) varies, and the README maps the article's FP*/FP-/FP+/KP*/KP-/KP+ naming onto specific
@@ -177,9 +179,13 @@ a solver-specific `MIPModelPtr` (`CPXModel`/`XPRSModel`/`SCIPModel`/`PDLPModel`,
 one of three code paths based on `method=`:
 
 - **`solver`** — plain MIP solve via the underlying solver, stopped at the first feasible solution.
-- **`feaspump`** — `FeasibilityPump` (`src/feaspump.cpp` / `include/kernelpump/feaspump.h`): the classical FP
-  loop (LP relax → round → re-optimize) with pluggable rounding via `transformers.cpp` and variable-selection
-  strategies via `ranking.cpp`.
+- **a feasibility-heuristic name** (e.g. `feaspump`) — run that heuristic standalone over the whole
+  problem, through the `FeasibilityHeuristic` interface. `main.cpp` resolves the name against
+  `HeuristicsFactory` with `resolveHeuristicName()` and knows nothing about any concrete heuristic,
+  so registering a new one makes it immediately available here *and* as `kp.heuristic`.
+  `feaspump` is `FeasibilityPump` (`src/feaspump.cpp` / `include/kernelpump/feaspump.h`): the classical
+  FP loop (LP relax → round → re-optimize) with pluggable rounding via `transformers.cpp` and
+  variable-selection strategies via `ranking.cpp`.
 - **`kernelpump`** — `KernelPump` (`src/kernelpump.cpp` / `include/kernelpump/kernelpump.h`): builds an initial
   "kernel" of variables plus a sequence of "buckets" of remaining binary variables (grouped by relaxation
   layers or variable dependency — see `buildBucketsByRelaxationLayers`/`buildBucketsConsideringVariableDependency`

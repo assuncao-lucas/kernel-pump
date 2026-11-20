@@ -28,7 +28,7 @@ Before concluding that a key matters for a run, check `method=` first.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `method` | *(none — throws)* | `solver` \| `feaspump` \| `kernelpump`. Case-insensitive. |
+| `method` | *(none — throws)* | `solver` \| `kernelpump` \| the name of any registered feasibility heuristic, run standalone over the whole problem (`feaspump` is the only one registered today). Case-insensitive; an unknown value throws and the message lists the registered names. |
 | `solver` | `cpx` | Backend. Only `cpx` works; others throw unless compiled in. |
 | `runName` | `default` | Goes into the output filename `s_<runName>_<prob>_<seed>.sol`. By convention the config name. |
 | `seed` | `0` | Seeds the rounder and the ranker. The only source of run-to-run variation. |

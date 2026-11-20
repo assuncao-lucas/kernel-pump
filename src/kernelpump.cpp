@@ -195,17 +195,13 @@ bool KernelPump::Init(MIPModelPtr model)
     // Exactly one instance per run: implementations may carry state across buckets, and
     // FeasibilityPump does (its iteration limits are a budget shared by all of them), so it must
     // NOT be recreated per bucket. See docs/spec-heuristic-interface.md section 5.
-    heuristic_.reset(HeuristicsFactory::getInstance().create(heuristic_name_));
+    // resolved case-insensitively, so kp.heuristic accepts the same spellings as method=
+    const std::string resolved_heuristic = resolveHeuristicName(heuristic_name_);
+    if (!resolved_heuristic.empty())
+        heuristic_.reset(HeuristicsFactory::getInstance().create(resolved_heuristic));
     if (!heuristic_)
-    {
-        std::vector<std::string> known;
-        HeuristicsFactory::getInstance().getIDs(std::back_inserter(known));
-        std::string known_list;
-        for (const auto &id : known)
-            known_list += (known_list.empty() ? "" : ", ") + id;
         throw std::runtime_error(fmt::format("Unknown kp.heuristic '{}' (registered: {})",
-                                             heuristic_name_, known_list));
-    }
+                                             heuristic_name_, registeredHeuristicNames()));
     consoleLog("kpHeuristic: {}", heuristic_->name());
 
     return true;

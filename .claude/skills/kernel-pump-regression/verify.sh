@@ -95,10 +95,13 @@ else
 	keep="${TMPDIR:-/tmp}/kp-verify-failures-$(date +%Y%m%d-%H%M%S).txt"
 	cp "$FAILLOG" "$keep" 2>/dev/null && echo "detail: $keep"
 	echo
-	echo "Before concluding this is a real regression, rule out a flaky case: re-run the differing"
-	echo "case 3+ times with the BASELINE binary (golden/bin/kp_baseline) and check whether it is"
-	echo "even self-consistent. tools/screen.sh does exactly that, and"
-	echo "golden/stability-neos-1456979.tsv is an instance that failed it and was dropped."
+	echo "A difference is NOT necessarily a regression. Adjudicate it -- this runs the baseline and"
+	echo "the candidate 3 times each and tells you whether it is a REGRESSION, a FLAKY case or a"
+	echo "STALE GOLDEN record:"
+	echo
+	echo "  $HERE/tools/adjudicate.sh $KP $INSTDIR 3 <config>:<instance>:<seed>:<timelimit>"
+	echo
+	echo "e.g. config21:air05:2:30 . See the skill's SKILL.md for what each verdict means."
 fi
 
 [ "$differ" -eq 0 ]

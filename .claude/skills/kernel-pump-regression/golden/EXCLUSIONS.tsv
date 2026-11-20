@@ -12,3 +12,4 @@ tierA	config17	neos-1456979	2	30	unstable on the BASELINE binary: 3-run repeat g
 tierA	config17	neos-1456979	3	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
 tierA	config23	neos-1456979	1	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
 tierA	config23	neos-1456979	3	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config21	air05	3	30	stale golden record AND flaky: the recorded value stopped reproducing even on the baseline binary, and a 3-run baseline repeat produced 2 distinct outcomes (see MANIFEST)

@@ -44,14 +44,21 @@ are **not production-ready**. Only `solver=cpx` works. Don't spend effort on the
 
 ## Three methods, one entry point
 
-`method=` in the config selects the path in `src/main.cpp:100-113` (case-insensitive; empty or
-unrecognised throws):
+`method=` in the config selects the path in `src/main.cpp` (case-insensitive; empty or unrecognised
+throws, and the error message lists the registered heuristics):
 
 - **`solver`** — plain CPLEX MIP solve with `SolutionLimit=1`, i.e. stop at the first feasible
   solution. The baseline. `mipFeasEmphasis=1` additionally sets CPLEX feasibility emphasis.
-- **`feaspump`** — one `FeasibilityPump` over the whole problem.
-- **`kernelpump`** — `KernelPump`, which drives an *internal* `FeasibilityPump` repeatedly over a
-  growing kernel.
+- **`kernelpump`** — `KernelPump`, which drives a feasibility heuristic repeatedly over a growing
+  kernel (which heuristic: `kp.heuristic`, default `feaspump`).
+- **any registered feasibility-heuristic name** — run that heuristic standalone over the whole
+  problem. `feaspump` is the only one registered today, so in practice `method=feaspump` means one
+  `FeasibilityPump` over the whole problem, exactly as before.
+
+`main.cpp` holds no reference to any concrete heuristic: it resolves the name through
+`resolveHeuristicName()` against `HeuristicsFactory`. Registering a new heuristic therefore makes it
+available as both `method=<name>` and `kp.heuristic=<name>` with no change to `main.cpp` or
+`KernelPump`. See **Pluggable feasibility heuristic** below.
 
 After any of them finds `x`, `main.cpp` does three things that matter:
 1. **Re-verifies every constraint** against `x` with tolerance `0.001` and throws if violated

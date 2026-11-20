@@ -1,6 +1,6 @@
 ---
 name: kernel-pump-regression
-description: Behavioural regression suite for this Feasibility Pump / Kernel Pump codebase — a golden set of 191 recorded .sol outputs plus verify.sh, which replays them with a candidate kp binary and reports any behavioural difference. Use after changing anything that can affect FP or KP results (src/, include/kernelpump/, extern/, settings/), before committing or merging such a change, when asked whether a refactor preserved behaviour, or when a run's status, iteration count, bucket count or integrality gap looks unexpected. Also explains why KP is not bit-reproducible and how to tell a real regression from a flaky case.
+description: Behavioural regression suite for this Feasibility Pump / Kernel Pump codebase — a golden set of 190 recorded .sol outputs plus verify.sh, which replays them with a candidate kp binary and reports any behavioural difference. Use after changing anything that can affect FP or KP results (src/, include/kernelpump/, extern/, settings/), before committing or merging such a change, when asked whether a refactor preserved behaviour, or when a run's status, iteration count, bucket count or integrality gap looks unexpected. Also explains why KP is not bit-reproducible, and includes adjudicate.sh to tell a real regression from a flaky case or a stale recorded value.
 ---
 
 # Kernel Pump behavioural regression suite
@@ -24,7 +24,7 @@ The instance directory defaults to `/home/lucas/Downloads/instances/benchmark` a
 with `$KP_INSTANCE_DIR`. It must hold the MIPLIB `.mps` files named in `golden/CASES.tsv`.
 
 Exit code 0 means every case matched. Non-zero names the differing cases and writes the detail to a
-file outside the repo. Expect **roughly 30 minutes**; it replays 191 CPLEX runs sequentially.
+file outside the repo. Expect **roughly 30 minutes**; it replays 190 CPLEX runs sequentially.
 
 Two rules that are not optional:
 
@@ -58,11 +58,13 @@ The two sharpest detectors, worth reading first in any failure:
 | `verify.sh` | the entry point described above |
 | `golden/MANIFEST` | how the set was captured: baseline commit, compiler, CPLEX version, tiers, the determinism screen and its limitations |
 | `golden/CASES.tsv` | the authoritative case list — tier, config, instance, seed, time limit |
-| `golden/sol/` | 191 recorded baseline `.sol` files, one per case |
+| `golden/sol/` | 190 recorded baseline `.sol` files, one per case |
 | `golden/EXCLUSIONS.tsv` | cases deliberately left out, each with its reason |
-| `golden/stability-neos-1456979.tsv` | the evidence that dropped one instance (see below) |
+| `golden/stability-*.tsv` | the evidence behind each exclusion decision (see below) |
 | `golden/bin/BASELINE_COMMIT` | the commit the golden output came from |
 | `golden/bin/kp_baseline` | the baseline binary — **git-ignored on purpose** (34 MB). Rebuild it from `BASELINE_COMMIT` if you need it |
+| `tools/adjudicate.sh` | **run this on any difference**: runs both binaries N times and decides REGRESSION / FLAKY / STALE GOLDEN / OK |
+| `tools/stability.sh` | run one case N times with one binary and count distinct outcomes |
 | `tools/screen.sh` | run a grid twice and emit a per-case `deterministic YES/NO` verdict |
 | `tools/probe.sh` | single-run probe reporting time, status, iterations, buckets — used to pick instances |
 | `tools/capture.sh` | capture a grid into a directory with a `MANIFEST` |
@@ -74,7 +76,7 @@ Three tiers, chosen so the expensive instances are not needlessly repeated acros
 
 | tier | content | grid | time limit |
 | --- | --- | --- | --- |
-| A | fast instances, the workhorse | 4 KP configs × 13 instances × 3 seeds, minus 1 flaky case = **155** | 30s |
+| A | fast instances, the workhorse | 4 KP configs × 13 instances × 3 seeds, minus 2 excluded = **154** | 30s |
 | B | slow instances with maximal bucket coverage | 4 KP configs × 4 instances × 1 seed = **16** | 120s |
 | C | the FP and plain-solver paths | 5 configs × 4 instances × 1 seed = **20** | 30s |
 
@@ -88,34 +90,46 @@ the bucket loop, so they cannot detect a regression in the interesting code. Sel
 instead — `last bucket visited > 0`, and a total time comfortably under the limit. `tools/probe.sh`
 exists for that. A run that exhausts `fp.iterLimit` is ideal: it terminates early *and*
 deterministically, since once the shared budget is gone the remaining buckets get zero iterations.
-94 of the 191 cases exercise the bucket loop; `traininstance2` walks all 5 of its buckets
+93 of the 190 cases exercise the bucket loop; `traininstance2` walks all 5 of its buckets
 with 11402 iterations, `ns1830653` all 11, `csched007` all 8.
 
-## KP is not bit-reproducible — telling flaky from broken
+## A difference is not a regression — adjudicate it
 
 Because the per-bucket budget comes from the wall clock, two runs of the same
 instance × config × seed can legitimately differ even when neither hits its time limit. A case that
-finishes in 5s under a 30s limit is *not* automatically safe.
+finishes in 5s under a 30s limit is *not* automatically safe. There are **three** reasons
+`verify.sh` can report a difference, and only one of them is your bug:
 
-So when `verify.sh` reports a difference, **do not assume a regression**. First establish whether
-the case is even self-consistent on the baseline:
+| | what happened | what to do |
+| --- | --- | --- |
+| **REGRESSION** | both binaries are self-consistent but disagree with each other | fix your change |
+| **FLAKY** | the baseline disagrees with *itself* across runs | exclude the case |
+| **STALE GOLDEN** | both binaries agree with each other but not with the recorded file | re-record from the baseline, or exclude |
+
+Do not eyeball this. Run:
 
 ```bash
-.claude/skills/kernel-pump-regression/tools/screen.sh \
-    .claude/skills/kernel-pump-regression/golden/bin/kp_baseline \
-    /path/to/instances /tmp/screen 30 "config17" "1" "someinstance.mps"
+tools/adjudicate.sh ./build/kp /path/to/instances 3 config21:air05:2:30
 ```
 
-If the baseline disagrees with itself, the case is flaky and belongs in `EXCLUSIONS.tsv`, not in a
-bug report.
+It runs the baseline *and* the candidate three times each, compares all three values, and prints the
+verdict. It exits 0 unless it finds a genuine REGRESSION.
 
-`golden/stability-neos-1456979.tsv` is the cautionary example. That instance **passed** a two-run
-determinism screen on several cases, yet a three-run repeat of the *unmodified baseline* produced up
-to **3 distinct outcomes per case** (config17: 3/3 distinct for every seed). All 8 of its cases were
-removed, taking the set from 199 to 191.
+Both failure modes have actually occurred here, so neither is hypothetical:
 
-**If you rebuild this set, screen with at least 3 runs, not 2.** Two agreeing runs are not a
-determinism proof.
+- **Flaky.** `neos-1456979` *passed* a two-run determinism screen on several cases, yet a three-run
+  repeat of the unmodified baseline produced up to **3 distinct outcomes per case** (config17: 3/3
+  distinct for every seed). All 8 of its cases were removed. `golden/stability-neos-1456979.tsv`.
+  **If you rebuild this set, screen with at least 3 runs, not 2.**
+- **Stale golden.** After the M6 change, two `air05`/`config21` cases differed from their records —
+  while the baseline and candidate binaries agreed with each other exactly. The machine's timing
+  regime had shifted since capture, so the record was no longer reproducible by the binary that
+  produced it. Seed 2 was re-recorded from `kp_baseline`; seed 3 was excluded, having also shown
+  flakiness. `golden/stability-air05.tsv`.
+
+The structural fix would be to compare a candidate against the baseline binary run side by side
+rather than against frozen files, which cannot go stale — at the cost of doubling the runtime.
+Frozen files plus `adjudicate.sh` is the compromise in place.
 
 ## Related
 

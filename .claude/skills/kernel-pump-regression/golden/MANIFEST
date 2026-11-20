@@ -36,13 +36,24 @@ same baseline binary produced up to 3 DISTINCT outcomes per case (config17: 3/3
 distinct for every seed). All 8 of its remaining cases were therefore removed:
 see stability-neos-1456979.tsv for the evidence. Final golden set: 191 cases.
 If this set is ever rebuilt, screen with >= 3 runs, not 2.
+
+SECOND LIMITATION: a recorded value can go STALE. On 2026-11-20, after the M6 change,
+two air05/config21 cases differed from their records -- but the baseline binary and the
+candidate binary agreed with each other exactly (3 runs each), and neither matched the
+record. The machine's timing regime had shifted since capture, so the recorded value was
+simply no longer reproducible by the binary it came from. A difference against the golden
+file is therefore NOT evidence of a regression on its own. Use tools/adjudicate.sh, which
+runs both binaries N times and distinguishes REGRESSION / FLAKY / STALE GOLDEN / OK.
+Resolution: s_config21_air05_2.sol was re-recorded from kp_baseline (stable 3/3 in two
+independent measurements); config21/air05/seed=3 was excluded, since a 3-run baseline
+repeat had produced 2 distinct outcomes (stability-air05.tsv). Final set: 190 cases.
 The 5 exclusions are wall-clock-sensitive rather than clock-limited: none hit its
 time limit, but the per-bucket budget time_left/(num_buckets+1) shifts slightly
 between runs, so a bucket completes a different number of FP iterations.
 
 coverage of the golden set
 --------------------------
-  191 cases, of which 94 have 'last bucket visited' > 0 (bucket loop actually ran)
+  190 cases, of which 93 have 'last bucket visited' > 0 (bucket loop actually ran)
   largest '# iterations' in the set: 12000
   cases exhausting fp.iterLimit exactly (shared-budget signature) are the strongest
   detectors of a per-bucket budget reset regression.
@@ -53,6 +64,7 @@ contents
   EXCLUSIONS.tsv  cases dropped by the determinism screen, with reason
   sol/            golden .sol files (run A), one per case in CASES.tsv
   stability-neos-1456979.tsv  3-run repeat showing why that instance was dropped
+  stability-air05.tsv         3-run repeat behind the air05 decisions above
   verify.sh       rerun CASES.tsv with a candidate binary and diff against sol/
 
 usage

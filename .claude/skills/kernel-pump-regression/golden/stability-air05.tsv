@@ -1,0 +1,13 @@
+config	instance	seed	distinct_of_3	fingerprints
+config16	air05	1	1	[ 98f2db47 98f2db47 98f2db47]
+config16	air05	2	1	[ 98f2db47 98f2db47 98f2db47]
+config16	air05	3	1	[ 98f2db47 98f2db47 98f2db47]
+config17	air05	1	1	[ 27c7d5c1 27c7d5c1 27c7d5c1]
+config17	air05	2	1	[ 27c7d5c1 27c7d5c1 27c7d5c1]
+config17	air05	3	1	[ 27c7d5c1 27c7d5c1 27c7d5c1]
+config21	air05	1	1	[ 566add4c 566add4c 566add4c]
+config21	air05	2	1	[ cebc18c3 cebc18c3 cebc18c3]
+config21	air05	3	2	[ 8b779a1f 8b779a1f 87e447d9]
+config23	air05	1	1	[ 424015b0 424015b0 424015b0]
+config23	air05	2	1	[ 726795d8 726795d8 726795d8]
+config23	air05	3	2	[ ac32b616 ac32b616 19e380c1]

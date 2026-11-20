@@ -131,6 +131,21 @@ namespace dominiqs
 
 	typedef SingletonHolder<Factory<FeasibilityHeuristic, std::string>> HeuristicsFactory;
 
+	/**
+	 * Look up a registered heuristic name, ignoring case.
+	 *
+	 * @return the registered name exactly as it was registered, or "" if there is no such
+	 *         heuristic. Matching is case-insensitive so that `method=FEASPUMP` keeps working
+	 *         exactly as it did when main.cpp compared upper-cased method strings.
+	 *
+	 * Register names in lower case; the comparison is case-insensitive either way, but the
+	 * lower-case spelling is what appears in config files and in error messages.
+	 */
+	std::string resolveHeuristicName(const std::string &name);
+
+	/** Comma-separated list of registered heuristic names, for error messages and logging. */
+	std::string registeredHeuristicNames();
+
 } // namespace dominiqs
 
 #endif /* FEASIBILITY_HEURISTIC_H */

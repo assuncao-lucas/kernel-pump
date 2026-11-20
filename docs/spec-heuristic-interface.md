@@ -1,6 +1,6 @@
 # Spec: a generic feasibility-heuristic interface for the Kernel Pump
 
-**Status:** implemented and verified (M0-M5); M6 not done
+**Status:** implemented and verified (M0-M6)
 **Branch:** `generic_interface` (from `main` @ `fc31aa97`)
 **Scope:** `include/kernelpump/`, `src/kernelpump.cpp`, `src/main.cpp`, `tests/`, `settings/`
 
@@ -149,10 +149,10 @@ Notes on the shape:
   The tuple return becomes a named `HeuristicOutcome`; `std::get<1>(result)` at
   `kernelpump.cpp:916` is exactly the thing whose meaning nobody can guess from the call site.
 - `run()` rather than `pump()`: "pump" names the FP mechanism, not the contract.
-- No `resetPartial()` / `resetTotal()` in the interface. KP never calls either (`init()` calls
-  `resetPartial()` internally); `main.cpp:331` calls `fp.resetTotal()` on the concrete FP in the
-  standalone path. Keeping them off the interface prevents a future driver from assuming a reset
-  semantics that implementations need not share.
+- No `resetPartial()` / `resetTotal()` in the interface. Neither driver needs them: `init()` calls
+  `resetPartial()` internally, and the one `fp.resetTotal()` the standalone path used to call was
+  dead weight that M6 removed (§6.5). Keeping them off the interface prevents a future driver from
+  assuming reset semantics that implementations need not share.
 - No LP-method accessor. See Section 6.3.
 
 ## 5. Lifecycle contract
@@ -279,6 +279,43 @@ interface. Either would change the simplex method used during kernel repair for 
 sets `fp.reOptMethod` to something other than `default` — a real behaviour change, invisible in the
 diff.
 
+### 6.5 Running a heuristic standalone (`method=<name>`)
+
+`main.cpp` had a third branch that constructed a concrete `FeasibilityPump` for `method=feaspump`.
+That branch now runs *any* registered heuristic through the interface, so KP and the standalone path
+share one extension point.
+
+Dispatch (`src/main.cpp`):
+
+- `solver` -> plain MIP solve, unchanged.
+- `kernelpump` -> `KernelPump`, unchanged.
+- anything else -> `resolveHeuristicName(method)`; if it names a registered heuristic, run it
+  standalone, otherwise throw and list the registered names.
+
+`resolveHeuristicName()` and `registeredHeuristicNames()` live in `src/feasibility_heuristic.cpp`,
+not in `main.cpp`, so they are unit-testable and shared with `KernelPump`'s `kp.heuristic`
+validation. Resolution is **case-insensitive**, which is what preserves behaviour: `main.cpp`
+previously upper-cased `method` before comparing, so `FEASPUMP` and `FeasPump` worked and must keep
+working. `kp.heuristic` resolves the same way, so both keys accept the same spellings.
+
+The standalone run is the same sequence as before, expressed through the interface: `readConfig()`,
+`init(model)`, then `run(timeLeft, HeuristicStart(), false)` -- no warm start, no early stop on
+stagnation, matching the old `fp.pump(timeLeft, false)`.
+
+One line was dropped: the old code ended with `fp.resetTotal()`. That only cleared
+`FeasibilityPump`'s own members, nothing external, and it was the last statement before the object
+left scope with nothing reading it afterwards, so removing it changes nothing. `resetTotal()`
+deliberately stays off the interface, since no driver needs it and implementations need not share
+its semantics.
+
+`main.cpp` no longer includes `kernelpump/feaspump.h` at all: the interface is the only route to a
+heuristic from either driver.
+
+**Consequence for new heuristics.** Registering one in a factory recorder makes it available as both
+`method=<name>` (standalone, whole problem) and `kp.heuristic=<name>` (per bucket inside KP), with
+no change to `main.cpp` or `KernelPump`. `tests/heuristic_interface_test.cpp` asserts this by
+registering a test-only heuristic and checking it resolves exactly like `feaspump`.
+
 ## 7. Behaviour preservation
 
 ### 7.1 FeasibilityPump stays untouched
@@ -384,8 +421,9 @@ behaviour. An unknown `kp.heuristic` throws at `Init()` with the name in the mes
 Each implementation owns its own config prefix and reads it in `readConfig()`; FP keeps `fp.*`
 untouched. A new heuristic must not read `fp.*`.
 
-`method=` in `main.cpp` is unchanged: `solver`, `feaspump`, `kernelpump`. The standalone
-`method=feaspump` path keeps using a concrete `FeasibilityPump` (see M5 for the optional unification).
+`method=` accepts `solver`, `kernelpump`, or the name of any registered feasibility heuristic to
+run it standalone (§6.5). Every existing config keeps working: `feaspump` is a registered name, and
+the lookup is case-insensitive, so `feaspump`, `FEASPUMP` and `FeasPump` all behave as before.
 
 ## 9. Test plan
 
@@ -571,7 +609,7 @@ new files are in `libkp` for every combination and that `results/` (which compil
 | **M3** | KP drives the interface (§6.1, §6.2) + `kp.heuristic` | **DONE** — code complete; golden-file equivalence (9.1) verified, see §9.5 |
 | **M4** | `kp.kernelRepairLpMethod`, `getReOptMethod()` coupling removed (§6.3) | **DONE** — no `feasibility_pump_` identifier remains in `kernelpump.cpp` (landed with M3: the interface has no LP accessor, so M3 cannot compile without it) |
 | **M5** | `tests/heuristic_interface_test.cpp` (9.2) | **DONE** — 45/45 checks pass |
-| **M6** *(optional)* | `method=feaspump` in `main.cpp` also goes through the factory | `method=feaspump` golden files unchanged |
+| **M6** | `method=<heuristic>` in `main.cpp` goes through the factory | **DONE** — tier C's 12 `method=feaspump` cases unchanged; see §6.5 |
 
 M0 genuinely comes first: without a golden set captured on `main`, M3 cannot be validated, and the
 whole point of the exercise is that the FP path does not move.
