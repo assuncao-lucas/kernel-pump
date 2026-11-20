@@ -6,10 +6,11 @@
  * 2013
  */
 
-#include <unistd.h> //< for getcwd
-#ifdef WIN32
-#include <direct.h>
+#ifdef _WIN32
+#include <direct.h> //< for _getcwd, _mkdir
+#define getcwd _getcwd
 #else
+#include <unistd.h> //< for getcwd
 #include <sys/stat.h> //< for mkdir
 #endif
 #include <string.h>
@@ -18,6 +19,7 @@
 #include <vector>
 #include <algorithm>
 #include <sstream>
+#include <cctype>
 
 #include "utils/path.h"
 #include "utils/str_utils.h"
@@ -33,7 +35,7 @@ std::string getCwd()
 	{
 		std::string s;
 		char* buffer = (char*)malloc(size);
-		if (getcwd(buffer, size))
+		if (getcwd(buffer, (int)size))
 		{
 			s = std::string(buffer);
 			free(buffer);
@@ -77,12 +79,18 @@ void Path::operator/=(const std::string& chunk)
 	}
 }
 
+#ifdef _WIN32
+static int makeDir(const std::string& path) { return ::_mkdir(path.c_str()); }
+#else
+static int makeDir(const std::string& path) { return ::mkdir(path.c_str(), 0777); }
+#endif
+
 void Path::mkdir(bool recursive)
 {
 	if (data.empty()) return;
 	if (!recursive)
 	{
-		int res = ::mkdir(data.c_str(), 0777);
+		int res = makeDir(data);
 		if (res && (errno != EEXIST)) throw std::runtime_error(strerror(errno));
 		return;
 	}
@@ -93,7 +101,7 @@ void Path::mkdir(bool recursive)
 		{
 			std::string::size_type found = data.find_first_of('/', index);
 			std::string token = data.substr(0, found);
-			int res = ::mkdir(token.c_str(), 0777);
+			int res = makeDir(token);
 			if (res && (errno != EEXIST)) throw std::runtime_error(strerror(errno));
 			if (found == std::string::npos || found == (data.size() - 1)) return;
 			index = found + 1;
@@ -108,12 +116,16 @@ bool Path::isEmpty() const
 
 bool Path::isAbsolute() const
 {
-	return (!isEmpty() && data[0] == '/');
+	if (isEmpty()) return false;
+	if (data[0] == '/') return true;
+	// Windows drive-letter path, e.g. "C:/..." or "C:\\..."
+	if (data.size() >= 2 && std::isalpha((unsigned char)data[0]) && data[1] == ':') return true;
+	return false;
 }
 
 bool Path::isRelative() const
 {
-	return (!isEmpty() && data[0] != '/');
+	return (!isEmpty() && !isAbsolute());
 }
 
 std::string Path::getAbsolutePath() const

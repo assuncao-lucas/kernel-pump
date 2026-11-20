@@ -2,7 +2,7 @@
 add_definitions(-DSILENT_EXEC)
 
 # Common boilerplate
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 set(CMAKE_CXX_STANDARD 17)
@@ -79,6 +79,9 @@ target_include_directories(kp PUBLIC
 
 if (APPLE)
 	target_link_libraries(kp -Wl,-force_load Prop::Lib -Wl,-force_load Kp::Lib Utils::Lib fmt::fmt)
+elseif (MSVC)
+	target_link_libraries(kp Prop::Lib Kp::Lib Utils::Lib fmt::fmt)
+	target_link_options(kp PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:Prop::Lib>" "/WHOLEARCHIVE:$<TARGET_FILE:Kp::Lib>")
 else()
 	target_link_libraries(kp  -Wl,--whole-archive Prop::Lib Kp::Lib -Wl,--no-whole-archive Utils::Lib fmt::fmt)
 endif()
@@ -119,7 +122,15 @@ configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/include/kernelpump/version.h
 )
 
-include_directories ("/usr/include/eigen3")
+find_package(Eigen3 QUIET)
+if (NOT Eigen3_FOUND)
+  if (UNIX)
+    set(EIGEN3_INCLUDE_DIR "/usr/include/eigen3" CACHE PATH "Path to Eigen3 headers")
+  else()
+    set(EIGEN3_INCLUDE_DIR "" CACHE PATH "Path to Eigen3 headers")
+  endif()
+endif()
+include_directories ("${EIGEN3_INCLUDE_DIR}")
 
 # Add subprojects
 if (GIT_FOUND AND MASTER_PROJECT)

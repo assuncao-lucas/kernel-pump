@@ -11,7 +11,14 @@
 
 #include <fmt/format.h>
 #include <fmt/color.h>
+
+#ifdef _WIN32
+#include <io.h>
+#define isatty _isatty
+#define STDOUT_FILENO _fileno(stdout)
+#else
 #include <unistd.h>
+#endif
 
 // macro type savers
 #define LOG_ITEM(name, value) consoleLog("{} = {}", name, value)

@@ -12,7 +12,7 @@ num_seeds=""
 percentage_random_sample=100
 
 base_solutions_dir="./solutions" 
-solutions_sub_folder=$(date +%Y-%m-%d_%H:%M:%S)
+solutions_sub_folder=$(date +%Y-%m-%d_%H-%M-%S)
 solutions_dir="$base_solutions_dir/$solutions_sub_folder"
 configs_dir="./settings/all"
 usage_str="Usage: $0 --instances-dir PATH --instances-list FILE --configs-list FILE --time-limit FLOAT --num-seeds INT>0 [--percentage-random-sample INTEGER 0-100]"
