@@ -24,6 +24,37 @@ result tables/statistics for an accompanying research article.
 
 On Debian/Ubuntu: `sudo apt install libboost-dev zlib1g-dev cmake build-essential`.
 
+### Troubleshooting: `cmake` will not start at all
+
+```
+cmake: error while loading shared libraries: libldap-2.5.so.0: cannot open shared object file
+```
+
+This is a machine configuration bug, not a project one, and it also breaks `/usr/bin/curl`. Some
+vendor packages add their private dependency directory to the **global** loader path via
+`/etc/ld.so.conf.d/`, where an older bundled library shadows the system copy for every process. On
+this project's dev machine it is Dell's `dca-enabler`: `/etc/ld.so.conf.d/dcaenabler.conf` points at
+`/usr/lib/dcaenabler/`, which holds an Ubuntu-22 `libcurl.so.4` linked against OpenLDAP 2.5, while
+Ubuntu 26.04 ships OpenLDAP 2.6 (`libldap.so.2`). `cmake` links libcurl, so it cannot start.
+
+Permanent fix (needs root). Safe here because that package contains only libraries — no
+executables — and its daemon `dcae.service` is already dead on this distro (`/usr/sbin/dcae` is also
+missing `libdbus-glib-1.so.2`, so it exits 127 and systemd restarts it forever):
+
+```bash
+sudo mv /etc/ld.so.conf.d/dcaenabler.conf /etc/ld.so.conf.d/dcaenabler.conf.disabled
+sudo ldconfig
+# to undo: sudo mv ...conf.disabled ...conf && sudo ldconfig
+```
+
+Until that is done the batch scripts cope on their own: they source `cmake_env.sh`, which prepends
+the system library directory to `LD_LIBRARY_PATH` **only if** `cmake` cannot otherwise start, so it
+is inert on a healthy machine. For a manual build in a shell where `cmake` fails, do the same:
+
+```bash
+. ./cmake_env.sh      # from the repository root
+```
+
 On Windows: Visual Studio Build Tools 2022 (C++ workload), CMake, Ninja and [vcpkg](https://github.com/microsoft/vcpkg)
 with the `VCPKG_ROOT` env var set. Dependencies are declared in `vcpkg.json` (manifest mode) and installed
 automatically at configure time. Configure from a VS Developer shell (or VS Code with CMake Tools, which
@@ -102,6 +133,20 @@ dependency is found and run manually:
   warm-start forwarding, per-bucket time budgets) plus every kernel-absorption branch, including the ones
   no config in `settings/all` reaches. Exits non-zero on failure.
 - `grbmodel_test <license file> <scratch dir>` (`tests/grbmodel_test.cpp`, needs Gurobi).
+
+For *behavioural* regressions — a change that compiles and still finds solutions but has altered the
+search trajectory, and therefore the article's numbers — use the **`kernel-pump-regression` skill**
+(`.claude/skills/kernel-pump-regression/`):
+
+```bash
+.claude/skills/kernel-pump-regression/verify.sh          # ~30 min, tests ./build/kp
+```
+
+It replays 191 recorded baseline runs (KP, FP and plain-solver configs over 17 MIPLIB instances and
+3 seeds) and diffs every `.sol` field except the two wall-clock ones. Run it on an idle machine and
+never compile while it runs: the per-bucket budget is `time_left/(num_buckets+1)`, taken from the
+wall clock, so KP is not unconditionally reproducible and CPU contention alone can change a result.
+The skill explains how to tell a flaky case from a real regression.
 
 Beyond those, correctness is checked at runtime: after `kp` finds a solution it re-verifies
 every constraint against it (see the feasibility double-check block near the end of `src/main.cpp`) and throws

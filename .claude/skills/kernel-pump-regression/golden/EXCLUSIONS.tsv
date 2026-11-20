@@ -1,0 +1,14 @@
+tier	config	instance	seed	timelimit	reason
+tierA	config21	neos-1456979	1	30	non-deterministic on repeat run (wall-clock-sensitive per-bucket budget)
+tierA	config21	neos-1456979	2	30	non-deterministic on repeat run (wall-clock-sensitive per-bucket budget)
+tierA	config21	neos-1456979	3	30	non-deterministic on repeat run (wall-clock-sensitive per-bucket budget)
+tierA	config23	air05	3	30	non-deterministic on repeat run (wall-clock-sensitive per-bucket budget)
+tierA	config23	neos-1456979	2	30	non-deterministic on repeat run (wall-clock-sensitive per-bucket budget)
+tierA	config16	neos-1456979	1	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config16	neos-1456979	2	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config16	neos-1456979	3	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config17	neos-1456979	1	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config17	neos-1456979	2	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config17	neos-1456979	3	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config23	neos-1456979	1	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config23	neos-1456979	3	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it

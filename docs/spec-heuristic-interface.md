@@ -446,8 +446,12 @@ construction.
 
 ### 9.1 Golden-file equivalence (the core requirement)
 
-Archive the `.sol` files as the golden set **outside the repo** — `solutions/` holds committed
-research output, see the `results` gotcha in the skill.
+The golden set now lives in the repo as the **`kernel-pump-regression` skill**
+(`.claude/skills/kernel-pump-regression/`): `verify.sh` replays every case and reports differences,
+`golden/` holds the recorded `.sol` files and the manifest, `tools/` holds the capture/screen/probe
+helpers. Note it does **not** live under `solutions/`, which holds committed research output that
+the `results` binary rewrites in place (see the gotcha in the `kernel-pump-internals` skill), and
+the 34 MB baseline binary is git-ignored rather than committed.
 
 A flat "every config × every instance × 3 seeds" grid is needlessly expensive, because the slow
 high-coverage instances are exactly the ones you least need repeated across seeds. Three tiers
@@ -532,7 +536,7 @@ flag. This is a weaker test — use it to cover what 9.1 cannot, not as a substi
 ### 9.5 Result of the verification (2026-11-20)
 
 Baseline `fc31aa97`, CPLEX 2211, Release with `-DSILENT_EXEC`, golden set at
-`/home/lucas/Documents/Research/kernel-pump-m0-golden`.
+`.claude/skills/kernel-pump-regression/golden` (run it with that skill's `verify.sh`).
 
 | run | outcome |
 | --- | --- |

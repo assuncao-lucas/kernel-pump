@@ -1,0 +1,64 @@
+M0 golden set -- baseline behaviour of the FP-driven Kernel Pump
+================================================================
+Purpose: reference output to prove that generalising KernelPump onto the
+         FeasibilityHeuristic interface (docs/spec-heuristic-interface.md, M3)
+         leaves kp.heuristic=feaspump behaviour unchanged.
+
+baseline commit : fc31aa979e871e29f47509a340a1b799c0314654
+baseline branch : generic_interface (code identical to origin/main at capture time)
+baseline binary : bin/kp_baseline   sha256(16): 39f85ada85bd9840
+build           : Release, -DSILENT_EXEC, GCC 15, CMake 4.2.3
+solver          : CPLEX 2211 (/opt/ibm/ILOG/CPLEX_Studio2211/cplex), solver=cpx
+instances       : /home/lucas/Downloads/instances/benchmark  (MIPLIB, per instances/miplib.txt)
+captured        : 2026-11-20T15:20:41-03:00
+machine         : Linux 7.0.0-43-generic x86_64, 32 cpus
+
+tiers
+-----
+tierA  4 KP configs x 14 fast instances x seeds 1,2,3   timeLimit=30
+tierB  4 KP configs x 4 slow/high-coverage instances x seed 1   timeLimit=120
+tierC  3 FP + 2 solver configs x 4 instances x seed 1   timeLimit=30
+       (tierC guards the code paths M3 does not touch)
+
+KP configs: config16 config17 config21 config23
+FP configs: config1 config3 config20
+solver    : config18 config19
+
+determinism screen
+------------------
+Every case was run TWICE with the identical command line and compared on every
+.sol field except 'total time (s)' and 'time building kernel and buckets (s)'.
+  204 cases run, 199 deterministic, 5 excluded by this screen (see EXCLUSIONS.tsv)
+
+LIMITATION FOUND LATER: two agreeing runs are NOT enough for a marginal instance.
+neos-1456979 passed the 2-run screen for several cases yet a 3-run repeat on the
+same baseline binary produced up to 3 DISTINCT outcomes per case (config17: 3/3
+distinct for every seed). All 8 of its remaining cases were therefore removed:
+see stability-neos-1456979.tsv for the evidence. Final golden set: 191 cases.
+If this set is ever rebuilt, screen with >= 3 runs, not 2.
+The 5 exclusions are wall-clock-sensitive rather than clock-limited: none hit its
+time limit, but the per-bucket budget time_left/(num_buckets+1) shifts slightly
+between runs, so a bucket completes a different number of FP iterations.
+
+coverage of the golden set
+--------------------------
+  191 cases, of which 94 have 'last bucket visited' > 0 (bucket loop actually ran)
+  largest '# iterations' in the set: 12000
+  cases exhausting fp.iterLimit exactly (shared-budget signature) are the strongest
+  detectors of a per-bucket budget reset regression.
+
+contents
+--------
+  CASES.tsv       authoritative case list: tier, config, instance, seed, timelimit
+  EXCLUSIONS.tsv  cases dropped by the determinism screen, with reason
+  sol/            golden .sol files (run A), one per case in CASES.tsv
+  stability-neos-1456979.tsv  3-run repeat showing why that instance was dropped
+  verify.sh       rerun CASES.tsv with a candidate binary and diff against sol/
+
+usage
+-----
+  ./verify.sh /path/to/new/kp            # exits non-zero on any behavioural difference
+
+location: .claude/skills/kernel-pump-regression/golden (inside the repo; the 34 MB
+          baseline binary under bin/ is git-ignored and rebuildable from BASELINE_COMMIT)
+M1+M2 self-test: 199/199 identical against the adapter-only build (behaviour unchanged)

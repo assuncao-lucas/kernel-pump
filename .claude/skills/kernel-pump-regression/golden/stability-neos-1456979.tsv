@@ -1,0 +1,13 @@
+config	instance	seed	distinct_fingerprints_of_3_runs
+config16	neos-1456979	1	1	[ e2d09bc9 e2d09bc9 e2d09bc9]
+config16	neos-1456979	2	1	[ 7af2a11e 7af2a11e 7af2a11e]
+config16	neos-1456979	3	1	[ ca24853b ca24853b ca24853b]
+config17	neos-1456979	1	3	[ 1b052c8f 9b83e39a f57cbf70]
+config17	neos-1456979	2	3	[ 37b7cd31 e96723ec 7f6d8fa6]
+config17	neos-1456979	3	3	[ 311a99fd 43cf51d9 6e02ff3e]
+config21	neos-1456979	1	2	[ f6a5b18d 2f5a701e 2f5a701e]
+config21	neos-1456979	2	2	[ a5c84ea3 2245697b a5c84ea3]
+config21	neos-1456979	3	1	[ 3517ecc4 3517ecc4 3517ecc4]
+config23	neos-1456979	1	1	[ 73f598af 73f598af 73f598af]
+config23	neos-1456979	2	3	[ ad692692 66350740 de55531a]
+config23	neos-1456979	3	1	[ 25d0abe3 25d0abe3 25d0abe3]

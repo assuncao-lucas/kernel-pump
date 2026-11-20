@@ -257,6 +257,8 @@ cd ./results/build
 
 # Build results executable
 echo "Building results executable..."
+# shellcheck source=cmake_env.sh
+. ../../cmake_env.sh
 cmake --build . -j 12
 
 # Reconstruct arguments (absolute paths, excluding random sampling flags)
