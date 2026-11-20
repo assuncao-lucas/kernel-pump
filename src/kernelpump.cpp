@@ -1,5 +1,8 @@
 #include <cmath>
 #include <algorithm>
+#include <iterator>
+#include <stdexcept>
+#include <string>
 #include "kernelpump/kernelpump.h"
 #include <utils/consolelog.h>
 #include <utils/fileconfig.h>
@@ -9,6 +12,9 @@ using namespace dominiqs;
 // DEFAULT Kernel Search parameters.
 static const int K_KP_DEFAULT_NUM_BUCKET_LAYERS = 10;
 static const int K_KP_DEFAULT_NAX_SIZE_BUCKETS = 100;
+// The feasibility heuristic KP drives when kp.heuristic is unset: the classical Feasibility Pump,
+// which is what every config in settings/all uses.
+static const char *K_KP_DEFAULT_HEURISTIC = "feaspump";
 
 void KernelPump::Reset()
 {
@@ -45,6 +51,20 @@ void KernelPump::getClosestFrac(std::vector<double> &x) const
     copy(postClosestFrac.begin(), postClosestFrac.end(), x.begin());
 }
 
+char KernelPump::ParseLpMethod(const std::string &name)
+{
+    // Same mapping as fp.firstOptMethod / fp.reOptMethod in src/feaspump.cpp.
+    if (name == "default")
+        return 'S';
+    if (name == "primal")
+        return 'P';
+    if (name == "dual")
+        return 'D';
+    if (name == "barrier")
+        return 'B';
+    throw std::runtime_error(std::string("Unknown optimization method: ") + name);
+}
+
 void KernelPump::readConfig()
 {
     try_enforce_feasibility_initial_kernel_ = gConfig().get("kp.tryEnforceFeasibilityInitialKernel", false);
@@ -59,9 +79,18 @@ void KernelPump::readConfig()
     buckets_by_variable_dependency_ = gConfig().get("kp.buildBucketsConsideringVariableDependency", false);
     num_bucket_layers_ = gConfig().get("kp.numBucketLayers", K_KP_DEFAULT_NUM_BUCKET_LAYERS);
     max_size_buckets_ = gConfig().get("kp.maxBucketSize", K_KP_DEFAULT_NAX_SIZE_BUCKETS);
+    heuristic_name_ = gConfig().get("kp.heuristic", std::string(K_KP_DEFAULT_HEURISTIC));
+
+    // Simplex method for the initial-kernel repair LPs. Same spelling -> code mapping as
+    // fp.reOptMethod (src/feaspump.cpp), and the same default, so leaving the key unset reproduces
+    // the historical behaviour exactly.
+    std::string kernel_repair_lp_method = gConfig().get("kp.kernelRepairLpMethod", std::string("default"));
+    kernel_repair_lp_method_ = ParseLpMethod(kernel_repair_lp_method);
 
     // log.
     consoleInfo("[config kp]");
+    LOG_ITEM("kp.heuristic", heuristic_name_);
+    LOG_ITEM("kp.kernelRepairLpMethod", kernel_repair_lp_method);
     LOG_ITEM("kp.tryEnforceFeasibilityInitialKernel", try_enforce_feasibility_initial_kernel_);
     LOG_ITEM("kp.buildKernelBasedOnNullObjective", build_kernel_based_on_null_obj_);
     LOG_ITEM("kp.buildKernelBasedOnSumVarsObjective", build_kernel_based_on_sum_vars_obj_);
@@ -81,6 +110,10 @@ bool KernelPump::Init(MIPModelPtr model)
     // INIT
     consoleInfo("[kpInit]");
     Reset();
+
+    // Drop any heuristic from a previous Init(): on a failed Init() no heuristic must exist, so
+    // that getIterations() reports 0 exactly as the old by-value FeasibilityPump member did.
+    heuristic_.reset();
 
     original_model_ = model; // must be saved for converting post solve solution in case of presolve.
     consoleLog("originalProblem: #rows={} #cols={} #nnz={}",
@@ -157,6 +190,23 @@ bool KernelPump::Init(MIPModelPtr model)
             continuous_[i] = 1;
         // std::cout << var_names[i] << " " << xType[i] << std::endl;
     }
+
+    // Create the feasibility heuristic last, so that it exists if and only if Init() succeeded.
+    // Exactly one instance per run: implementations may carry state across buckets, and
+    // FeasibilityPump does (its iteration limits are a budget shared by all of them), so it must
+    // NOT be recreated per bucket. See docs/spec-heuristic-interface.md section 5.
+    heuristic_.reset(HeuristicsFactory::getInstance().create(heuristic_name_));
+    if (!heuristic_)
+    {
+        std::vector<std::string> known;
+        HeuristicsFactory::getInstance().getIDs(std::back_inserter(known));
+        std::string known_list;
+        for (const auto &id : known)
+            known_list += (known_list.empty() ? "" : ", ") + id;
+        throw std::runtime_error(fmt::format("Unknown kp.heuristic '{}' (registered: {})",
+                                             heuristic_name_, known_list));
+    }
+    consoleLog("kpHeuristic: {}", heuristic_->name());
 
     return true;
 }
@@ -603,7 +653,7 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
 
                                     auto time_left = std::max(time_limit - kp_watch_.getElapsed(), 0.0);
                                     cloned_model_lp->dblParam(DblParam::TimeLimit, time_left);
-                                    result = cloned_model_lp->lpopt(feasibility_pump_.getReOptMethod(), false, true);
+                                    result = cloned_model_lp->lpopt(kernel_repair_lp_method_, false, true);
                                     cloned_model_lp->handleCtrlC(false);
 
                                     if (cloned_model_lp->aborted()) // result == false means LP is infeasible!
@@ -677,7 +727,7 @@ bool KernelPump::BuildKernelAndBuckets(double time_limit)
                                     cloned_model_lp->updateModelVarBounds(curr_kernel_bitset_ - previous_kernel_bitset, std::nullopt);
                                     auto time_left = std::max(time_limit - kp_watch_.getElapsed(), 0.0);
                                     cloned_model_lp->dblParam(DblParam::TimeLimit, time_left);
-                                    result = cloned_model_lp->lpopt(feasibility_pump_.getReOptMethod(), false, true);
+                                    result = cloned_model_lp->lpopt(kernel_repair_lp_method_, false, true);
                                 }
                                 // IMPORTANT NOTE: even when an LP feasible initial kernel is found, it might be the case that, when actually solving the sub-problem related to this kernel,
                                 // the presolve might detect that the problem is MIP infeasible. This happens because the presolve considers the INTEGER problem. Thus, the LP feasible problem
@@ -814,8 +864,10 @@ bool KernelPump::Run(double time_limit)
         // getchar();
         // PrintKernelAndBuckets();
 
-        // init feasibility pump.
-        feasibility_pump_.readConfig();
+        // init the feasibility heuristic. Exactly once, before the first init(): for
+        // FeasibilityPump this is where the RNG is seeded and the rounder created, so calling it
+        // per bucket would re-seed the RNG. See docs/spec-heuristic-interface.md section 5.
+        heuristic_->readConfig();
 
         // initially, deactivate all the binary variables.
         model_->updateModelVarBounds(std::nullopt, binaries_);
@@ -889,31 +941,29 @@ bool KernelPump::Run(double time_limit)
             bool found_int_feasible_solution = false;
             bool feasible_fp = false;
             // if init fails, means that the proble is already infeasible for the current bucket.
-            if (feasibility_pump_.init(model_)) // at fp.init, the original MIP problem is possibly presolved and linearly relaxed into an LP.
+            if (heuristic_->init(model_)) // at init, the original MIP problem is possibly presolved and linearly relaxed into an LP.
             {
-                // for the last bucket, disable stopping criteria of FP related to max number of iterations without at least x% improvements.
+                // for the last bucket, disable stopping criteria related to max number of iterations without at least x% improvements.
                 bool stop_with_no_impr_limit = (curr_bucket_index != total_num_buckets - 1);
-                // give warm start to FP (with best frac basis found so far) only if a basis exists AND reset_fp_initial_basis_at_new_loop_ == false.
-                std::vector<double> xStartPoint, xStartFrac;
-                double xStartDist = INFBOUND;
-                bool lp_primal_feas = false;
+                // give warm start to the heuristic (with best frac basis found so far) only if a basis exists AND reset_fp_initial_basis_at_new_loop_ == false.
+                HeuristicStart start;
                 if (!reset_fp_initial_basis_at_new_loop_ && !closest_frac_.empty())
                 {
-                    xStartFrac = closest_frac_;
-                    xStartDist = closest_dist_;
-                    lp_primal_feas = true;
+                    start.frac = closest_frac_;
+                    start.dist = closest_dist_;
+                    start.primalFeasible = true;
                 }
 
                 StopWatch tp1;
                 tp1.start();
 
-                auto result = feasibility_pump_.pump(curr_time_limit_iteration, stop_with_no_impr_limit, xStartFrac, xStartDist, lp_primal_feas);
+                auto result = heuristic_->run(curr_time_limit_iteration, start, stop_with_no_impr_limit);
 
                 // if (greaterThan(tp1.getElapsed(), curr_time_limit_iteration))
                 // std::cout << " * KP  bckt " << curr_bucket_index << " " << tp1.getElapsed() << " x " << curr_time_limit_iteration << std::endl;
 
-                found_int_feasible_solution = std::get<0>(result);
-                feasible_fp = std::get<1>(result);
+                found_int_feasible_solution = result.foundSolution;
+                feasible_fp = result.progressed;
             }
 
             if (feasible_fp && first_bucket_to_iter_pump_ == -1)
@@ -922,9 +972,9 @@ bool KernelPump::Run(double time_limit)
             if (found_int_feasible_solution)
             {
                 found_int_feasible_solution_ = true;
-                feasibility_pump_.getSolution(solution_);
-                primal_bound_ = feasibility_pump_.getPrimalBound();
-                closest_dist_ = feasibility_pump_.getClosestDist();
+                heuristic_->getSolution(solution_);
+                primal_bound_ = heuristic_->getPrimalBound();
+                closest_dist_ = heuristic_->getClosestDist();
                 ++curr_bucket_index;
                 curr_kernel_bitset_ = curr_reference_kernel;
                 num_binary_vars_with_value_1_in_solution_ = 0;
@@ -948,14 +998,14 @@ bool KernelPump::Run(double time_limit)
                 {
                     bool found_new_closest_point = false;
                     // if found a new better basis (i.e., a basis with smaller dist from integer), update best basis.
-                    curr_fp_closet_dist = feasibility_pump_.getClosestDist();
+                    curr_fp_closet_dist = heuristic_->getClosestDist();
                     // std::cout << curr_fp_closet_dist << " x " << closest_dist_ << std::endl;
 
                     if (lessThan(curr_fp_closet_dist, closest_dist_))
                     {
 
                         closest_dist_ = curr_fp_closet_dist;
-                        feasibility_pump_.getClosestFrac(closest_frac_);
+                        heuristic_->getClosestFrac(closest_frac_);
                         found_new_closest_point = true;
                     }
 

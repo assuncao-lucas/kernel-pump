@@ -10,6 +10,8 @@
 #include <iostream>
 #include <string>
 #include <algorithm>
+#include <iterator>
+#include <vector>
 #include <iomanip>
 #include <fstream>
 
@@ -23,6 +25,7 @@
 #include <utils/path.h>
 
 #include "kernelpump/feaspump.h"
+#include "kernelpump/feasibility_heuristic.h"
 #include "kernelpump/version.h"
 #include "kernelpump/kernelpump.h"
 #include "kernelpump/solution.h"
@@ -114,6 +117,29 @@ int main(int argc, char const *argv[])
 		solveKernelPump = true;
 	else
 		throw std::runtime_error(fmt::format("Selected invalid method {}", method));
+
+	// Validate kp.heuristic here, alongside method=, rather than relying on the throw in
+	// KernelPump::Init(): that one lands inside the try/catch below, whose handler goes through
+	// consoleError() and is therefore silenced by -DSILENT_EXEC -- a mistyped key would exit 0
+	// with no .sol file, which in a batch run is indistinguishable from a legitimate non-result.
+	if (solveKernelPump)
+	{
+		std::string heuristicName = gConfig().get("kp.heuristic", std::string("feaspump"));
+		std::vector<std::string> knownHeuristics;
+		HeuristicsFactory::getInstance().getIDs(std::back_inserter(knownHeuristics));
+		if (std::find(knownHeuristics.begin(), knownHeuristics.end(), heuristicName) == knownHeuristics.end())
+		{
+			std::string knownList;
+			for (const auto &id : knownHeuristics)
+				knownList += (knownList.empty() ? "" : ", ") + id;
+			throw std::runtime_error(fmt::format("Selected invalid kp.heuristic {} (registered: {})",
+												 heuristicName, knownList));
+		}
+		LOG_ITEM("kp.heuristic", heuristicName);
+
+		// same reasoning: fail loudly on a mistyped LP method rather than silently producing nothing
+		KernelPump::ParseLpMethod(gConfig().get("kp.kernelRepairLpMethod", std::string("default")));
+	}
 
 	MIPModelPtr model;
 	StopWatch watch;

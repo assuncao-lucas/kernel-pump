@@ -43,7 +43,7 @@ Before concluding that a key matters for a run, check `method=` first.
 
 ## `kp.*` — Kernel Pump
 
-Read in `KernelPump::readConfig` (`src/kernelpump.cpp:48`).
+Read in `KernelPump::readConfig` (`src/kernelpump.cpp`).
 
 ### Kernel/bucket construction
 
@@ -74,6 +74,13 @@ exclusive in practice; if none is set, the instance's own objective is used.
 | --- | --- | --- |
 | `kp.forceBucketVarsIntoKernel` | `0` | `1` = absorb the whole bucket into the kernel every iteration (monotone growth). `0` = absorb only binaries with `closest_frac > 0`. **All paper configs use 1.** |
 | `kp.resetFPBasisAtNewPump` | `0` | `1` = each bucket's FP solves its own initial LP. `0` = warm-start from the best fractional point so far. |
+
+### Which heuristic KP drives
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `kp.heuristic` | `feaspump` | Name of the `FeasibilityHeuristic` implementation KP drives per bucket, resolved through `HeuristicsFactory`. `feaspump` is the classical FP via the `FeasibilityPumpHeuristic` adapter. An unregistered name is rejected early in `src/main.cpp` (loudly, before the try/catch that `-DSILENT_EXEC` would mute) and the message lists the registered names. No config in `settings/all` sets this key. |
+| `kp.kernelRepairLpMethod` | `default` | Simplex method for the LPs solved while repairing the initial kernel (`kp.tryEnforceFeasibilityInitialKernel=1`). Same spellings as `fp.reOptMethod`: `default`→`'S'`, `primal`→`'P'`, `dual`→`'D'`, `barrier`→`'B'`. **Historical note:** these LPs used to call `FeasibilityPump::getReOptMethod()` *before* FP's `readConfig()` had run, so they always got the constructor default `'S'` regardless of `fp.reOptMethod`. This key makes the choice explicit; its default reproduces that `'S'` exactly, so no committed config changes behaviour. |
 
 ## `fp.*` — Feasibility Pump
 

@@ -1,10 +1,11 @@
 #pragma once
 
 #include "kernelpump/mipmodel.h"
+#include <string>
 #include <vector>
 #include <boost/dynamic_bitset.hpp>
 #include <utils/timer.h>
-#include "kernelpump/feaspump.h"
+#include "kernelpump/feasibility_heuristic.h"
 
 using namespace dominiqs;
 
@@ -20,6 +21,11 @@ public:
     bool Init(MIPModelPtr problem);
     bool Run(double time_limit);
 
+    /** Map an fp.reOptMethod-style spelling ("default"/"primal"/"dual"/"barrier") to the solver's
+     * LP method code. Throws std::runtime_error on an unknown spelling. Static so that main.cpp can
+     * validate the config key up front, outside the try/catch that -DSILENT_EXEC would mute. */
+    static char ParseLpMethod(const std::string &name);
+
     void Reset();
     bool foundSolution()
     {
@@ -27,7 +33,9 @@ public:
     }
     int getIterations() const
     {
-        return feasibility_pump_.getIterations();
+        // main.cpp reads this even when Init() failed, i.e. before the heuristic exists;
+        // the previous by-value FeasibilityPump member reported 0 in that case.
+        return heuristic_ ? heuristic_->getIterations() : 0;
     }
 
     double getClosestDist() const
@@ -80,7 +88,12 @@ public:
     void getSolution(std::vector<double> &solution) const;
 
 private:
-    FeasibilityPump feasibility_pump_;
+    // The feasibility heuristic KP drives, chosen by kp.heuristic and created at the END of a
+    // successful Init(), so it exists if and only if Init() succeeded.
+    // IMPORTANT: exactly one instance per KP run -- implementations may carry state across
+    // buckets, and FeasibilityPump does (its iteration limits are a budget shared by all
+    // buckets). See docs/spec-heuristic-interface.md section 5.
+    FeasibilityHeuristicPtr heuristic_;
     boost::dynamic_bitset<> binaries_;
     boost::dynamic_bitset<> gintegers_;
     boost::dynamic_bitset<> continuous_;
@@ -111,6 +124,12 @@ private:
     std::shared_ptr<std::vector<boost::dynamic_bitset<>>> cols_dependency_;
 
     // parameters.
+    std::string heuristic_name_ = "feaspump"; // kp.heuristic
+    // Simplex method for the LPs solved while repairing the initial kernel. Formerly taken from
+    // FeasibilityPump::getReOptMethod(), which at that point in Run() had not yet had
+    // readConfig() called on it and so always yielded the constructor default 'S'. Now explicit.
+    // See docs/spec-heuristic-interface.md section 6.3.
+    char kernel_repair_lp_method_ = 'S'; // kp.kernelRepairLpMethod
     bool try_enforce_feasibility_initial_kernel_ = false;
     bool build_kernel_based_on_null_obj_ = false;
     bool build_kernel_based_on_sum_vars_obj_ = false;

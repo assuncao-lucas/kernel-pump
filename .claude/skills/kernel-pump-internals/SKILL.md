@@ -164,8 +164,10 @@ the kernel size before this repair, `..._refined_` after.
   which gets all remaining time (`src/kernelpump.cpp:826,836`).
 - *reference kernel* = current kernel ∪ current bucket. Activate the entering vars, deactivate the
   ones leaving.
-- Run `feasibility_pump_.init(model_)` then `.pump(...)`. If `init` returns false the subproblem is
-  already infeasible and FP never iterates.
+- Run `heuristic_->init(model_)` then `->run(...)`. If `init` returns false the subproblem is
+  already infeasible and the heuristic never iterates. `heuristic_` is a `FeasibilityHeuristic`
+  chosen by `kp.heuristic` (default `feaspump` = the classical FP behind a thin adapter), so KP is
+  not tied to FP; see the **Pluggable feasibility heuristic** section below.
 - `stopWithNoImprLimit` is **disabled for the last bucket only**, letting the final attempt run
   to the full iteration/time budget (`src/kernelpump.cpp:895`).
 - **Warm start**: unless `resetFPBasisAtNewPump=1`, the best fractional point found so far
@@ -194,8 +196,8 @@ LP-feasible and not presolve-infeasible) — useful for diagnosing "FP never got
 
 ## Budget carry-over — the biggest trap
 
-`KernelPump::Run` calls `feasibility_pump_.readConfig()` **once**, before the loop
-(`src/kernelpump.cpp:818`), but calls `init()` + `pump()` **per bucket**. And at the end of every
+`KernelPump::Run` calls `heuristic_->readConfig()` **once**, before the loop, but calls `init()` +
+`run()` **per bucket**, on a single heuristic instance created in `Init()`. And at the end of every
 `pumpLoop`, the iteration limits are **decremented by the iterations just consumed**
 (`src/feaspump.cpp:1975-1985`):
 
@@ -217,6 +219,46 @@ stage1IterLimit -= used;  stage2IterLimit -= used;  iterLimit -= used;
   `closest_frac_` and feeds them back in.
 
 If you change iteration-limit handling, check all three of these interactions.
+
+## Pluggable feasibility heuristic
+
+KP does not depend on FP as such: it needs *some* procedure that, given the sub-MIP induced by the
+active kernel, either returns an integer-feasible point or reports the fractional point it got
+closest with. That contract is the abstract `FeasibilityHeuristic`
+(`include/kernelpump/feasibility_heuristic.h`):
+
+| Member | Role |
+| --- | --- |
+| `readConfig()` | read own `gConfig()` keys; called **once**, before the first `init()` |
+| `init(model, ctype)` | prepare for a subproblem; `false` ⇒ already infeasible, `run()` is skipped |
+| `run(timeLimit, HeuristicStart, stopOnNoImprovement)` | the work; returns `HeuristicOutcome{foundSolution, progressed}` |
+| `getSolution` / `getPrimalBound` | results on success |
+| `getClosestDist` / `getClosestFrac` | best fractional point of the **last** invocation only |
+| `getIterations` / `name` | reporting |
+
+`KernelPump` holds one `FeasibilityHeuristicPtr`, created at the end of a successful `Init()` from
+`HeuristicsFactory` by the `kp.heuristic` name. `FeasibilityPumpHeuristic`
+(`include/kernelpump/feaspump_heuristic.h`, registered in `src/feaspump_heuristic.cpp` as
+`"feaspump"`) forwards straight to `FeasibilityPump`, which was left untouched by the
+generalisation. Adding a heuristic means implementing the interface and registering it; `KernelPump`
+does not change.
+
+Three things that bite:
+
+- **One instance per run.** Implementations may carry state across buckets and FP does — see
+  *Budget carry-over* above. Creating one per bucket would hand every bucket a full iteration
+  budget and silently invalidate published results.
+- **`HeuristicStart::dist` is informational.** `pump()` logs it and then resets its own
+  `closestDist` to `INFBOUND` (`src/feaspump.cpp:691`), so a warm start does not seed FP's notion
+  of the best distance. KP keeps the running best itself.
+- **`progressed` is nearly always true once a warm start exists**, because a warm start assigns
+  `closestFrac` immediately (`src/feaspump.cpp:686`) and `progressed` is `!closestFrac.empty()`
+  (`src/feaspump.cpp:822`). The `false` branch shows up mainly on the first bucket or with
+  `kp.resetFPBasisAtNewPump=1`.
+
+Design, lifecycle contract and the behaviour-preservation traps: `docs/spec-heuristic-interface.md`.
+Contract tests: `tests/heuristic_interface_test.cpp` (needs CPLEX), which also covers the
+kernel-absorption branches no paper config reaches.
 
 ## Presolve discipline
 

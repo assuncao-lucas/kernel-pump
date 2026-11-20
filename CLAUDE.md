@@ -93,7 +93,17 @@ see any file under `settings/all` for the full key set. `TESTSET.md` documents w
 (config1…config25) varies, and the README maps the article's FP*/FP-/FP+/KP*/KP-/KP+ naming onto specific
 config numbers.
 
-There is no unit test suite. Correctness is checked at runtime: after `kp` finds a solution it re-verifies
+There is no general unit test suite, but two standalone test executables exist, each built only when its
+dependency is found and run manually:
+
+- `heuristic_interface_test <scratch dir>` (`tests/heuristic_interface_test.cpp`, needs CPLEX) — contract
+  tests for the `FeasibilityHeuristic` interface: it registers test-only heuristics with
+  `HeuristicsFactory` and asserts how `KernelPump` drives them (one instance per run, `readConfig()` once,
+  warm-start forwarding, per-bucket time budgets) plus every kernel-absorption branch, including the ones
+  no config in `settings/all` reaches. Exits non-zero on failure.
+- `grbmodel_test <license file> <scratch dir>` (`tests/grbmodel_test.cpp`, needs Gurobi).
+
+Beyond those, correctness is checked at runtime: after `kp` finds a solution it re-verifies
 every constraint against it (see the feasibility double-check block near the end of `src/main.cpp`) and throws
 if any constraint is violated. Statistical validation across configs (e.g. McNemar's test) is done separately
 in `results/src/McNemar_test.py` against `results/build`-generated CSVs — requires `statsmodels` and `pandas`.
@@ -128,8 +138,18 @@ one of three code paths based on `method=`:
 - **`kernelpump`** — `KernelPump` (`src/kernelpump.cpp` / `include/kernelpump/kernelpump.h`): builds an initial
   "kernel" of variables plus a sequence of "buckets" of remaining binary variables (grouped by relaxation
   layers or variable dependency — see `buildBucketsByRelaxationLayers`/`buildBucketsConsideringVariableDependency`
-  in `TESTSET.md`/config files), then incrementally grows the kernel bucket-by-bucket, delegating to an
-  internal `FeasibilityPump` instance (`feasibility_pump_`) at each step to find/repair integer feasibility.
+  in `TESTSET.md`/config files), then incrementally grows the kernel bucket-by-bucket, delegating at each
+  step to a **feasibility heuristic** to find/repair integer feasibility.
+
+  That heuristic is pluggable, not hard-wired: `KernelPump` drives the abstract `FeasibilityHeuristic`
+  interface (`include/kernelpump/feasibility_heuristic.h`) and picks an implementation by name from
+  `HeuristicsFactory` via the `kp.heuristic` key (default `feaspump`). The classical FP is supplied by the
+  thin adapter `FeasibilityPumpHeuristic` (`include/kernelpump/feaspump_heuristic.h`, registered in
+  `src/feaspump_heuristic.cpp`), which leaves `FeasibilityPump` itself untouched. To add another heuristic,
+  implement the interface and register it in a factory recorder — no change to `KernelPump` is needed. The
+  contract that matters most: **one instance per KP run**, `readConfig()` once, then `init()`+`run()` per
+  bucket, because FP's iteration limits are a budget shared across all buckets. The design, the lifecycle
+  contract and the behaviour-preservation traps are written up in `docs/spec-heuristic-interface.md`.
 
 After a solution is found, `main.cpp` fixes the integer variables and re-solves the LP relaxation to get a
 "reoptimized" objective value, then writes results via `Solution::WriteToFile` (`src/solution.cpp` /
