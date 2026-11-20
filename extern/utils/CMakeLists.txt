@@ -40,13 +40,12 @@ endif()
 
 project(dominiqs-utils)
 
-# Include zlib as an imported target
+# zlib (FindZLIB provides the ZLIB::ZLIB imported target)
 find_package(ZLIB REQUIRED)
-add_library(ZLIB::Lib STATIC IMPORTED)
-set_target_properties(ZLIB::Lib PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES ${ZLIB_INCLUDE_DIRS}
-  IMPORTED_LOCATION ${ZLIB_LIBRARIES}
-)
+
+# Boost is header-only here (index_partition.h, and kernelpump's mipmodel.h/kernelpump.h,
+# which get it transitively through Utils::Lib). Use Boost's own CMake package config.
+find_package(Boost REQUIRED CONFIG)
 
 # Define libutils
 add_library(utils STATIC src/app.cpp src/base64.cpp src/compress.cpp src/it_display.cpp src/maths.cpp src/numbers.cpp 
@@ -58,7 +57,7 @@ target_include_directories(utils
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(utils PUBLIC fmt::fmt ZLIB::Lib)
+target_link_libraries(utils PUBLIC fmt::fmt ZLIB::ZLIB Boost::headers)
 
 add_library(Utils::Lib ALIAS utils)
 

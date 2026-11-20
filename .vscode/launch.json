@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "kp (Windows, MSVC debugger)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "args": ["PATH_TO_INSTANCE.mps", "--config", "settings/all/config16.cfg", "seed=1", "solutionFolder=solutions", "timeLimit=60"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "kp (Linux, gdb)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "args": ["PATH_TO_INSTANCE.mps", "--config", "settings/all/config16.cfg", "seed=1", "solutionFolder=solutions", "timeLimit=60"],
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb"
+        }
+    ]
+}

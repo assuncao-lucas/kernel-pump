@@ -69,5 +69,8 @@
         "variant": "cpp",
         "format": "cpp",
         "*.in": "c"
-    }
+    },
+    "cmake.useCMakePresets": "always",
+    "cmake.configureOnOpen": true,
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
 }

@@ -163,7 +163,15 @@ void RandomRanker::ignoreGeneralIntegers(bool flag)
 void RandomRanker::setCurrentState(const std::vector<double> &x)
 {
 	std::iota(perm.begin(), perm.end(), 0);
-	std::random_shuffle(perm.begin(), perm.end(), rnd);
+	// std::random_shuffle was removed in C++17 (MSVC no longer ships it). This is the exact
+	// algorithm libstdc++ uses for the 3-argument overload, so permutations for a given seed
+	// stay identical to those of earlier (GCC-built) experiment runs.
+	for (std::size_t i = 1; i < perm.size(); ++i)
+	{
+		std::size_t j = static_cast<std::size_t>(rnd(static_cast<long>(i + 1)));
+		if (i != j)
+			std::swap(perm[i], perm[j]);
+	}
 	nextItr = 0;
 	nCalled++;
 }
