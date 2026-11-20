@@ -19,7 +19,8 @@ result tables/statistics for an accompanying research article.
 | CMake ≥ 3.10 | CMake 4.x removed compatibility with `cmake_minimum_required` below 3.5, so all subprojects (including vendored `extern/fmt`) declare ≥ 3.10. |
 | Boost headers | **Header-only**, found with `find_package(Boost CONFIG)` in `extern/utils` and propagated via `Boost::headers`. Only `boost/dynamic_bitset.hpp` and `boost/iterator/iterator_facade.hpp` are used. |
 | zlib | Required by `extern/utils` (`ZLIB::ZLIB`). |
-| CPLEX | The only functional solver backend. Pass `-DCPLEX_ROOT_DIR=...`. On Windows the lib format defaults to `x64_windows_msvc14/stat_mda` (dynamic CRT, `/MD`), which is why vcpkg uses the `x64-windows-static-md` triplet. |
+| CPLEX | The reference solver backend. Pass `-DCPLEX_ROOT_DIR=...`. On Windows the lib format defaults to `x64_windows_msvc14/stat_mda` (dynamic CRT, `/MD`), which is why vcpkg uses the `x64-windows-static-md` triplet. |
+| Gurobi (optional) | `solver=grb` backend (`src/grbmodel.cpp`, C API only), found via `GUROBI_HOME` (`cmake/modules/FindGUROBI.cmake`) → `HAS_GUROBI`. Building/linking needs no license; the DLL is copied next to `kp.exe`. At run time `GRBModel` **refuses to start unless `grb.licenseFile=<path>` is given** (it then sets `GRB_LICENSE_FILE` for the process), so a user-level license is never picked up implicitly; `grb.requireLicenseFile=0` disables that guard. MIP presolve is not supported yet (no crush/uncrush in Gurobi's C API): `presolve()` reports no reductions and FP/KP run on the original model. |
 
 On Debian/Ubuntu: `sudo apt install libboost-dev zlib1g-dev cmake build-essential`.
 

@@ -61,6 +61,9 @@ find_package(SCIP)
 # Find ORTOOLS library
 find_package(ORTOOLS)
 
+# Find GUROBI library (optional; building and linking need no license)
+find_package(GUROBI)
+
 # Find Threads
 find_package(Threads)
 
@@ -119,6 +122,20 @@ if (ORTOOLS_FOUND)
   target_compile_definitions(kp PUBLIC HAS_ORTOOLS=1)
   target_sources(libkp PRIVATE src/pdlpmodel.cpp)
   target_link_libraries(libkp PUBLIC Pdlp::Pdlp)
+endif()
+
+if (GUROBI_FOUND)
+  target_compile_definitions(libkp PUBLIC HAS_GUROBI=1)
+  target_compile_definitions(kp PUBLIC HAS_GUROBI=1)
+  target_sources(libkp PRIVATE src/grbmodel.cpp)
+  target_link_libraries(libkp PUBLIC Gurobi::Gurobi)
+  # interface tests on toy models (run with an explicit license file; see tests/grbmodel_test.cpp)
+  add_executable(grbmodel_test tests/grbmodel_test.cpp)
+  target_link_libraries(grbmodel_test PRIVATE Kp::Lib)
+  if (WIN32 AND GUROBI_RUNTIME_LIBRARY)
+    # copy the DLL next to the executable so runs do not depend on PATH
+    add_custom_command(TARGET kp POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${GUROBI_RUNTIME_LIBRARY}" "$<TARGET_FILE_DIR:kp>")
+  endif()
 endif()
 
 # Generate version.h

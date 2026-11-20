@@ -34,6 +34,14 @@ The results sub-project builds the same way: `cmake -S results -B results/build 
 
 In VS Code, install the C/C++ and CMake Tools extensions and pick the `windows-release` preset. The experiment scripts (`*.sh`) run under Git Bash.
 
+### Gurobi (experimental)
+
+If `GUROBI_HOME` is set (or `-DGUROBI_HOME=...` is passed), CMake also builds the Gurobi backend. Select it with `solver=grb` and always name the license file explicitly, e.g.:
+```
+./kp instance.mps -c settings/all/config16.cfg solver=grb grb.licenseFile=/path/to/gurobi.lic
+```
+Without `grb.licenseFile` the run stops before starting Gurobi. MIP presolve is not yet supported with Gurobi, so FP/KP run on the original model.
+
 ### Results
 
 There is a sub-project dedicated to generating the results summary and LaTeX tables. It should also be compiled similarly as the main project. 
