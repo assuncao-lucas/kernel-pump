@@ -1,12 +1,13 @@
 #include <iostream>
 #include <string>
-#include <dirent.h>
+#include <filesystem>
 #include <sstream>
 #include <fstream>
-#include <getopt.h>
 #include <vector>
 #include <iomanip>
 #include <algorithm>
+#include <unordered_map>
+#include <unordered_set>
 #include <fmt/format.h>
 #include <utils/floats.h>
 #include "kernelpump/mipmodel.h"
@@ -85,38 +86,33 @@ void AddFiles(std::string directory, std::vector<std::pair<std::string, std::str
 
 void AddFilesFromDirectory(std::string directory, std::vector<std::pair<std::string, std::string>> &files, bool add_dir)
 {
-    DIR *dir;
-    struct dirent *ent;
-    if ((dir = opendir(directory.c_str())) != NULL)
-    {
-        /* print all the files and directories within directory */
-        while ((ent = readdir(dir)) != NULL)
-        {
-            std::string curr_file(ent->d_name);
-            std::string curr_format_termination;
-            if ((curr_file != ".") && (curr_file != "..") && ((curr_file.size() > 0) && (curr_file[curr_file.size() - 1] != '~')))
-            {
-                size_t end_pos = curr_file.find(".");
-                if (end_pos != std::string::npos)
-                {
-                    curr_format_termination = curr_file.substr(end_pos, std::string::npos);
-                    curr_file = curr_file.substr(0, end_pos);
-                }
-
-                std::string inst_path;
-                if (add_dir)
-                    inst_path = directory;
-                inst_path.append(curr_file);
-                files.push_back({inst_path, curr_format_termination});
-                // std::cout << curr_file << " " << curr_format_termination << std::endl;
-            }
-        }
-        closedir(dir);
-    }
-    else
+    std::error_code ec;
+    std::filesystem::directory_iterator it(directory, ec);
+    if (ec)
     {
         std::cout << "Invalid directory" << std::endl;
         throw 1;
+    }
+    for (const auto &entry : it)
+    {
+        std::string curr_file = entry.path().filename().string();
+        std::string curr_format_termination;
+        if ((curr_file.size() > 0) && (curr_file[curr_file.size() - 1] != '~'))
+        {
+            size_t end_pos = curr_file.find(".");
+            if (end_pos != std::string::npos)
+            {
+                curr_format_termination = curr_file.substr(end_pos, std::string::npos);
+                curr_file = curr_file.substr(0, end_pos);
+            }
+
+            std::string inst_path;
+            if (add_dir)
+                inst_path = directory;
+            inst_path.append(curr_file);
+            files.push_back({inst_path, curr_format_termination});
+            // std::cout << curr_file << " " << curr_format_termination << std::endl;
+        }
     }
     // std::sort(instances.begin(),instances.end());
 }
@@ -1458,18 +1454,16 @@ void ComputeDifferenceLists(std::string list1_file, std::string list2_file)
         std::cout << element << std::endl;
 }
 
-static const struct option longOpts[] = {
-    {"instances-dir", required_argument, NULL, 'a'},
-    {"instances-list", required_argument, NULL, 'b'},
-    {"configs-list", required_argument, NULL, 'c'},
-    {"solutions-dir", required_argument, NULL, 'd'},
-    {"time-limit", required_argument, NULL, 'e'},
-    {"num-seeds", required_argument, NULL, 'f'},
-    {NULL, no_argument, NULL, 0}};
+static const std::unordered_map<std::string, char> longOpts{
+    {"instances-dir", 'a'},
+    {"instances-list", 'b'},
+    {"configs-list", 'c'},
+    {"solutions-dir", 'd'},
+    {"time-limit", 'e'},
+    {"num-seeds", 'f'}};
 
 void ParseArgumentsAndRun(int argc, char *argv[])
 {
-    int c;
     std::string inst_folder;
     std::string inst_list_file;
     std::string solutions_folder;
@@ -1478,27 +1472,46 @@ void ParseArgumentsAndRun(int argc, char *argv[])
     double time_limit = 3600;
     int num_seeds = 3;
 
-    while ((c = getopt_long(argc, argv, "a:b:c:d:e:f:", longOpts, NULL)) != -1)
+    for (int i = 1; i < argc; ++i)
     {
-        switch (c)
+        std::string arg(argv[i]);
+        if (arg.rfind("--", 0) != 0) throw "invalid getopt argument";
+        std::string name = arg.substr(2);
+        std::string value;
+        size_t eq = name.find('=');
+        if (eq != std::string::npos)
+        {
+            value = name.substr(eq + 1);
+            name = name.substr(0, eq);
+        }
+        else
+        {
+            if (i + 1 >= argc) throw "invalid getopt argument";
+            value = argv[++i];
+        }
+
+        auto it = longOpts.find(name);
+        if (it == longOpts.end()) throw "invalid getopt argument";
+
+        switch (it->second)
         {
         case 'a':
-            inst_folder = std::string(optarg);
+            inst_folder = value;
             break;
         case 'b':
-            inst_list_file = std::string(optarg);
+            inst_list_file = value;
             break;
         case 'c':
-            configs_list_file = std::string(optarg);
+            configs_list_file = value;
             break;
         case 'd':
-            solutions_folder = std::string(optarg);
+            solutions_folder = value;
             break;
         case 'e':
-            time_limit = std::atof(optarg);
+            time_limit = std::atof(value.c_str());
             break;
         case 'f':
-            num_seeds = std::atoi(optarg);
+            num_seeds = std::atoi(value.c_str());
             break;
         default:
             throw "invalid getopt argument";

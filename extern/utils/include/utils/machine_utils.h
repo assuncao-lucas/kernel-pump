@@ -10,11 +10,15 @@
 #define MACHINE_UTILS_H
 
 #include <stddef.h> //< for size_t and ptrdiff_t
-#include <unistd.h> //< for sysconf
 #include <cstdlib>
 #ifdef __APPLE__
 #include <sys/sysctl.h>
+#include <unistd.h> //< for sysconf
+#elif defined(_WIN32)
+#include <windows.h>
+#include <emmintrin.h>
 #else
+#include <unistd.h> //< for sysconf
 #include <emmintrin.h>
 #endif // __APPLE__
 
@@ -172,6 +176,11 @@ inline double getPhysicalMemory()
 	int mib[2] = { CTL_HW, HW_MEMSIZE };
 	if ((sysctl(mib, 2, &memsize, &len, 0, 0) == 0) && (len == sizeof(memsize))) return (double)memsize;
 	return 0;
+#elif defined(_WIN32)
+	MEMORYSTATUSEX statex;
+	statex.dwLength = sizeof(statex);
+	if (GlobalMemoryStatusEx(&statex)) return (double)statex.ullTotalPhys;
+	return 0;
 #else
 	double res = sysconf(_SC_PAGESIZE) * (double)sysconf(_SC_PHYS_PAGES);
 	if (res >= 0) return res;
@@ -191,6 +200,11 @@ inline double getAvailableMemory()
 	size_t len = sizeof(memsize);
 	int mib[2] = { CTL_HW, HW_USERMEM };
 	if ((sysctl(mib, 2, &memsize, &len, 0, 0) == 0) && (len == sizeof(memsize))) return (double)memsize;
+	return 0;
+#elif defined(_WIN32)
+	MEMORYSTATUSEX statex;
+	statex.dwLength = sizeof(statex);
+	if (GlobalMemoryStatusEx(&statex)) return (double)statex.ullAvailPhys;
 	return 0;
 #else
 	double res = sysconf(_SC_PAGESIZE) * (double)sysconf(_SC_AVPHYS_PAGES);
@@ -214,6 +228,10 @@ inline int getNumPhysicalCores()
 	size_t len = sizeof(physicalCores);
 	sysctlbyname("hw.physicalcpu", &physicalCores, &len, 0, 0);
 	return physicalCores;
+#elif defined(_WIN32)
+	SYSTEM_INFO sysinfo;
+	GetSystemInfo(&sysinfo);
+	return (int)sysinfo.dwNumberOfProcessors;
 #else
 	return sysconf(_SC_NPROCESSORS_ONLN);
 #endif // __APPLE__
@@ -225,7 +243,13 @@ inline int getNumPhysicalCores()
 
 inline int getNumLogicalCores()
 {
+#ifdef _WIN32
+	SYSTEM_INFO sysinfo;
+	GetSystemInfo(&sysinfo);
+	return (int)sysinfo.dwNumberOfProcessors;
+#else
 	return sysconf(_SC_NPROCESSORS_ONLN);
+#endif
 }
 
 } // namespace dominiqs

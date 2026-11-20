@@ -10,12 +10,24 @@ if (NOT CPLEX_LIBFORMAT)
 		else()
 			set(CPLEX_LIBFORMAT "x86-64_linux/static_pic" CACHE PATH "CPLEX lib format")
 		endif()
+	elseif (WIN32)
+		# Adjust to match your installed Visual Studio version, e.g. x64_windows_msvc14/stat_mda
+		set(CPLEX_LIBFORMAT "x64_windows_msvc14/stat_mda" CACHE PATH "CPLEX lib format")
 	endif()
 endif()
 
 # Find CPLEX headers and library
 find_path(CPLEX_INCLUDE_DIR "ilcplex/cplex.h" PATHS ${CPLEX_ROOT_DIR}/include)
-find_library(CPLEX_LIBRARY "libcplex.a" PATHS ${CPLEX_ROOT_DIR}/lib/${CPLEX_LIBFORMAT})
+if (WIN32)
+	# CPLEX's Windows import lib is version-suffixed (e.g. cplex2211.lib), so glob for it
+	file(GLOB CPLEX_LIBRARY_CANDIDATES "${CPLEX_ROOT_DIR}/lib/${CPLEX_LIBFORMAT}/cplex*.lib")
+	if (CPLEX_LIBRARY_CANDIDATES)
+		list(GET CPLEX_LIBRARY_CANDIDATES 0 CPLEX_LIBRARY)
+		set(CPLEX_LIBRARY "${CPLEX_LIBRARY}" CACHE FILEPATH "CPLEX library")
+	endif()
+else()
+	find_library(CPLEX_LIBRARY "libcplex.a" PATHS ${CPLEX_ROOT_DIR}/lib/${CPLEX_LIBFORMAT})
+endif()
 
 mark_as_advanced(CPLEX_INCLUDE_DIR CPLEX_LIBRARY)
 
