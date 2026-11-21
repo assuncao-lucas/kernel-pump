@@ -63,6 +63,7 @@ inactive binary pinned by `ub = 0`):
    - `IntParam::SolutionLimit = 1` — stop at the first feasible solution;
    - `IntParam::NodeLimit = submip.nodeLimit` (default 500; 0 means unlimited);
    - `IntParam::Emphasis = 1` if `submip.feasEmphasis` (default on);
+   - **replace the objective exactly as FP's initial LP does** (§6.1);
    - `mipopt()`;
    - classify the outcome **by the portable predicates only** (§4.1), never by `status()`.
 3. **Outcome mapping** onto `HeuristicOutcome`:
@@ -206,12 +207,58 @@ fresh node limit. Say so explicitly, because a reader who knows FP will assume o
 | --- | --- | --- |
 | `submip.nodeLimit` | `500` | node cap per invocation; `0` = unlimited. Default follows Mexi et al. (EJCO 2023) |
 | `submip.feasEmphasis` | `1` | set `IntParam::Emphasis` (CPLEX feasibility emphasis / Gurobi `MIPFocus`) |
-| `submip.nullObjective` | `0` | zero the sub-MIP objective to chase feasibility alone. **Flagged:** the KP paper reports that discarding the objective holds success rate but *"substantially degrades solution quality"*. If this is enabled, report solution quality too |
 | `submip.reportRelaxationPoint` | `0` | §7.2, later milestone |
 | `submip.useMipStart` | `0` | §7.3, later milestone |
 
-No existing config is touched. An unknown `submip.*` key is silently ignored, as everywhere else in
-this codebase — worth knowing when a setting appears to have no effect.
+No existing config is touched. An unknown `submip.*` key is silently ignored
+(`FileConfig::getAsString` returns the default for a missing entry), as everywhere else in this
+codebase — worth knowing when a setting appears to have no effect.
+
+### 6.1 The sub-MIP objective is **not** a new key
+
+`submip` must **not** introduce an objective switch of its own. It reuses the mechanism the KP
+variants already use, so that KP⁻, KP⁺ and KP⁺ᐟ⁻ mean the same thing whichever inner heuristic is
+driving — the variant is a property of the configuration, not of the heuristic.
+
+The sub-MIP solve is the `submip` counterpart of FP's **initial LP**, so it applies the same
+three-way override that `FeasibilityPump::solveInitialLP` applies (`src/feaspump.cpp`), in the same
+precedence order, to its own clone:
+
+| Key | Effect on the sub-MIP objective |
+| --- | --- |
+| `fp.forceNullObjectiveInitialLP=1` | all objective coefficients 0, offset 0 — pure feasibility |
+| `fp.forceSumVarsObjectiveInitialLP=1` | coefficient 1 on every binary, 0 elsewhere, offset 0; sense `MIN` unless `fp.forceSumVarsObjectiveInitialLPMaxSense=1`, then `MAX` |
+| neither | the original MILP objective, untouched |
+| `fp.reverseObjectiveFunction=1` | afterwards, flip whatever sense is in force |
+
+Precedence is null → sum-of-binaries → original, exactly as in FP; `reverseObjectiveFunction` is
+applied last, on top of the result.
+
+Why this is the right objective family rather than an arbitrary one: minimising `Σ xᵢ` over the
+binaries **is** minimising the L1 distance to the all-zeros scenario, and maximising it is
+minimising the distance to all-ones, since `Σ(1 − xᵢ) = |B| − Σ xᵢ`. So these keys select which
+extreme binary scenario the sub-problem is pulled towards — the same intuition the paper builds KP⁻
+and KP⁺ on, and the reason the kernel-building LP has its own mirror of the same switch
+(`kp.buildKernelBasedOnSumVarsObjective`, `kp.buildKernelBasedOnSumVarsObjectiveMaxSense`,
+`kp.buildKernelBasedOnNullObjective`, `kp.reverseObjectiveFunction`).
+
+Consequence worth stating: with `config17`/`config21`/`config23` and nothing but
+`kp.heuristic=submip` added, the run keeps the published variant's semantics on both the
+kernel-building LP (`kp.*`, unchanged) and the sub-problem (`fp.*`, now honoured by `submip`).
+
+Two notes for the implementer:
+
+- These keys are spelled `fp.*` but now govern a non-FP heuristic. Read them under those names in
+  v1 — renaming would silently change what existing configs mean. If the misnomer becomes annoying,
+  add neutral aliases (`heur.*`) that **fall back** to the `fp.*` names, never a replacement.
+- FP does not restore the original objective after its initial LP, and neither should `submip` —
+  there is only one solve per invocation, so the question does not arise, but do not "fix" it in FP
+  while looking.
+
+The paper's warning still applies and is now a reporting obligation rather than a key: the authors
+found that discarding the original objective holds the success rate but *"substantially degrades
+solution quality"*. Any experiment run with `fp.forceNullObjectiveInitialLP=1` must report solution
+quality, not just success.
 
 ## 7. Three deliberate limitations, and how to lift them
 
@@ -300,10 +347,15 @@ Extend `tests/heuristic_interface_test.cpp` (CPLEX-gated, currently 53 checks):
    `mipFeasEmphasis`, `method=submip` should find a solution on the same toy instances as
    `method=solver`. Not a bitwise check — both stop at the first feasible solution found by the same
    solver, so statuses should agree even when the points differ.
-7. **Gurobi toy tests** (S4, Gurobi-gated): the outcome-mapping cases from (2) re-run under
+7. **The objective override is applied.** On a toy model whose original objective and whose
+   `Σ binaries` objective prefer *different* first feasible solutions, check that
+   `fp.forceSumVarsObjectiveInitialLP=1` with `MaxSense=0` yields the all-zeros-leaning solution and
+   `MaxSense=1` the all-ones-leaning one, and that with neither key the original objective's
+   solution comes back. This is what keeps KP⁻/KP⁺ meaningful under `submip`.
+8. **Gurobi toy tests** (S4, Gurobi-gated): the outcome-mapping cases from (2) re-run under
    `solver=grb` with an explicit licence file, following `tests/grbmodel_test.cpp`. All fit the
    2000 × 2000 size-limited licence.
-8. **Regression suite unchanged**: `kernel-pump-regression` stays 190/190, since nothing on the
+9. **Regression suite unchanged**: `kernel-pump-regression` stays 190/190, since nothing on the
    default path moves.
 
 ## 11. Risks
@@ -318,14 +370,39 @@ Extend `tests/heuristic_interface_test.cpp` (CPLEX-gated, currently 53 checks):
 | Gurobi path shipped untested and assumed working | §4.4: say what was and was not exercised |
 | sub-MIP per bucket is far slower than a pump, so KP never reaches later buckets | that is a legitimate negative result; `submip.nodeLimit` is the control, and `last bucket visited` in the `.sol` measures it directly |
 
-## 12. Questions for the author
+## 12. Decisions from the author
 
-These change the research meaning, not the implementation, so they are yours to decide:
+Answered 2026-11-21; recorded here so the implementer does not re-open them.
 
-1. **Objective inside the sub-MIP.** Keep the original objective (so the first feasible solution is
-   objective-guided), or zero it for pure feasibility? The paper's finding about discarding the
-   objective concerned kernel *construction*, not the sub-solve, so the precedent does not settle it.
-2. **Is `submip` a baseline or a contender?** As a baseline it isolates the decomposition's
-   contribution; as a contender it is a portfolio member. The experiments in S7 differ accordingly.
-3. **Node limit.** 500 follows Mexi et al., but KP's sub-problems are restricted by construction, so
-   a larger cap may be affordable. Worth a small sweep before fixing it.
+1. **Objective inside the sub-MIP — settled: no new key.** It follows the objective switch the KP
+   variants already use, i.e. the same `fp.forceNullObjectiveInitialLP` /
+   `fp.forceSumVarsObjectiveInitialLP` / `fp.forceSumVarsObjectiveInitialLPMaxSense` /
+   `fp.reverseObjectiveFunction` triple that `FeasibilityPump::solveInitialLP` applies, with the same
+   precedence. Minimising `Σ xᵢ` over the binaries is the L1 distance to the all-zeros scenario and
+   maximising it the distance to all-ones, so these keys already express "pull the sub-problem
+   towards one of the two extreme binary scenarios". Full detail in §6.1. The invented
+   `submip.nullObjective` key is **dropped**.
+
+2. **Node limit — settled: 500**, following Mexi, Berthold & Salvagnin (EJCO 2023). Exposed as
+   `submip.nodeLimit` so it can be swept later, but 500 is the default and needs no justification
+   beyond the citation.
+
+3. **Still open: the experimental role of `submip`.** This is a framing question about S7, not about
+   the code, and nothing in the implementation depends on it. The two readings:
+
+   - **As a baseline.** Run KP with `submip` and compare against KP with `feaspump`. Both use the
+     same kernel and the same buckets, so the only thing that differs is what solves each
+     sub-problem. That isolates how much of KP's reported gain comes from *the decomposition* versus
+     from *the pump*: if KP+submip already beats plain FP, the decomposition is carrying the result;
+     if it does not, the pump is essential to it. This answers a reviewer-style question about the
+     published method.
+   - **As a contender.** Treat KP+submip as another method in the comparison table alongside FP\*,
+     KP\*, KP⁻, KP⁺ and CPLEX, and as a member of the parallel portfolio the paper's future work
+     proposes — the fix-propagate-repair paper's finding was that a portfolio is far more robust than
+     any single strategy, and KP⁻/KP⁺/KP\* are already a natural portfolio that `submip` would
+     extend.
+
+   The difference is what gets measured and reported, not what gets built: the baseline reading
+   needs only KP+submip vs KP+feaspump on the same configs; the contender reading needs the full
+   protocol from the literature skill against every other method. Both are possible from the same
+   implementation, so this can be decided after S1–S4 are done.
