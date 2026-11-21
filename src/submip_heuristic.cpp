@@ -63,10 +63,23 @@ namespace dominiqs
 
 	void SubMipHeuristic::validateConfig(bool drivenByKernelPump) const
 	{
-		/* submip reports no closest point of its own, so under selective absorption the kernel
-		 * would never grow and every bucket would be tried against the initial kernel alone.
-		 * Refuse rather than run a silently pointless configuration (spec section 7.1). */
-		if (drivenByKernelPump && !gConfig().get("kp.forceBucketVarsIntoKernel", false))
+		/* Standalone, this heuristic would solve the whole problem at SolutionLimit=1 -- which is
+		 * exactly what method=solver already does, except capped at submip.nodeLimit and therefore
+		 * strictly worse. Two ways to do one thing, one of them a trap: an instance that
+		 * method=solver would solve can be reported as a failure here purely because the node cap
+		 * was hit. Refuse and point at the existing method instead. */
+		if (!drivenByKernelPump)
+			throw std::runtime_error(
+				"method=submip is not supported: standalone it would be method=solver capped at "
+				"submip.nodeLimit, i.e. the same search but artificially limited. Use method=solver "
+				"for a plain first-feasible solve, or kp.heuristic=submip to drive the Kernel Pump "
+				"with it");
+
+		/* Under KernelPump: submip reports no closest point of its own, so with selective
+		 * absorption the kernel would never grow and every bucket would be tried against the
+		 * initial kernel alone. Refuse rather than run a silently pointless configuration
+		 * (spec section 7.1). */
+		if (!gConfig().get("kp.forceBucketVarsIntoKernel", false))
 			throw std::runtime_error(
 				"kp.heuristic=submip requires kp.forceBucketVarsIntoKernel=1: submip reports no "
 				"closest-to-feasible point of its own, so with selective absorption the kernel "

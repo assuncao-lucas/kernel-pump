@@ -4,9 +4,13 @@
  *
  * See docs/spec-submip-heuristic.md.
  *
- * Registered as "submip", so it is available both as `kp.heuristic=submip` (driven per bucket by
- * the Kernel Pump, i.e. kernel growth guided by an exact sub-solver instead of a pump) and as
- * `method=submip` (standalone over the whole problem).
+ * Registered as "submip" and intended for ONE role: `kp.heuristic=submip`, driven per bucket by the
+ * Kernel Pump, i.e. kernel growth guided by an exact sub-solver instead of a pump.
+ *
+ * `method=submip` is deliberately REFUSED by validateConfig(). Standalone this would solve the whole
+ * problem at SolutionLimit=1, which is what `method=solver` already does -- only capped at
+ * submip.nodeLimit and therefore strictly worse, to the point where an instance method=solver
+ * solves can be reported as a failure here purely because the node cap was hit.
  *
  * PORTABILITY (the reason this class looks the way it does -- see spec section 4):
  *  - mipopt() returns true unconditionally on BOTH CPXModel and GRBModel, and status() returns raw

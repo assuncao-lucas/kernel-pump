@@ -28,7 +28,7 @@ Before concluding that a key matters for a run, check `method=` first.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `method` | *(none — throws)* | `solver` \| `kernelpump` \| the name of any registered feasibility heuristic, run standalone over the whole problem (`feaspump` is the only one registered today). Case-insensitive; an unknown value throws and the message lists the registered names. |
+| `method` | *(none — throws)* | `solver` \| `kernelpump` \| the name of any registered feasibility heuristic, run standalone over the whole problem. `feaspump` is the only one that permits it; `submip` refuses, since standalone it would duplicate `solver`. Case-insensitive; an unknown value throws and the message lists the registered names. |
 | `solver` | `cpx` | Backend. Only `cpx` works; others throw unless compiled in. |
 | `runName` | `default` | Goes into the output filename `s_<runName>_<prob>_<seed>.sol`. By convention the config name. |
 | `seed` | `0` | Seeds the rounder and the ranker. The only source of run-to-run variation. |
@@ -84,8 +84,10 @@ exclusive in practice; if none is set, the instance's own objective is used.
 
 ## `submip.*` — sub-MIP heuristic
 
-Read in `SubMipHeuristic::readConfig` (`src/submip_heuristic.cpp`). Only consulted when `submip` is
-the heuristic in use, via `kp.heuristic=submip` or `method=submip`.
+Read in `SubMipHeuristic::readConfig` (`src/submip_heuristic.cpp`). Only consulted when
+`kp.heuristic=submip`. **`method=submip` is refused**: standalone it would be `method=solver` capped
+at `submip.nodeLimit`, i.e. the same search artificially limited, so use `method=solver` for a plain
+first-feasible solve.
 
 | Key | Default | Meaning |
 | --- | --- | --- |

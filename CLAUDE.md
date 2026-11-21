@@ -119,9 +119,10 @@ Any config key can be overridden inline: `./build/kp instance.mps -c config.cfg 
 
 `method=` (in the config or as an override) selects the code path in `src/main.cpp`: `solver` (plain
 CPLEX MIP solve), `kernelpump`, or **the name of any registered feasibility heuristic** to run it
-standalone over the whole problem. Two are registered: `feaspump` (the classical FP) and `submip`
-(hand the problem to the backend's own MIP solver, stopping at the first feasible solution — see
-`docs/spec-submip-heuristic.md`). Matching is case-insensitive. Config files live in `settings/all/*.cfg` and are grouped/listed
+standalone over the whole problem — `feaspump` (the classical FP) is the only one for which that
+makes sense today. Matching is case-insensitive. The other registered heuristic, `submip`, is for
+`kp.heuristic=submip` only and **refuses `method=submip`**, because standalone it would be
+`method=solver` capped at `submip.nodeLimit` (see `docs/spec-submip-heuristic.md`). Config files live in `settings/all/*.cfg` and are grouped/listed
 in `settings/settings_list.txt`. `fp.*` keys configure `FeasibilityPump`, `kp.*` keys configure `KernelPump`;
 see any file under `settings/all` for the full key set. `TESTSET.md` documents what each numbered config
 (config1…config25) varies, and the README maps the article's FP*/FP-/FP+/KP*/KP-/KP+ naming onto specific

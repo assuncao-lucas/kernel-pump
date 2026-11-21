@@ -765,16 +765,22 @@ int main(int argc, char const *argv[])
 			}
 			check(threw, "submip + kp.forceBucketVarsIntoKernel=0 is refused when driven by KP");
 
+			// method=submip is refused outright: standalone it is method=solver capped at
+			// submip.nodeLimit, i.e. the same search but artificially limited
 			bool threwStandalone = false;
+			std::string standaloneMsg;
 			try
 			{
 				h->validateConfig(/*drivenByKernelPump=*/false);
 			}
-			catch (const std::exception &)
+			catch (const std::exception &e)
 			{
 				threwStandalone = true;
+				standaloneMsg = e.what();
 			}
-			check(!threwStandalone, "...but the same config is fine for a standalone submip run");
+			check(threwStandalone, "method=submip is refused: it would duplicate method=solver");
+			check(standaloneMsg.find("method=solver") != std::string::npos,
+				  "...and the message points at method=solver instead");
 
 			FeasibilityHeuristicPtr fp(HeuristicsFactory::getInstance().create("feaspump"));
 			bool fpThrew = false;

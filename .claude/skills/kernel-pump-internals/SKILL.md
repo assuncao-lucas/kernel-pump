@@ -57,8 +57,8 @@ throws, and the error message lists the registered heuristics):
 - **`kernelpump`** — `KernelPump`, which drives a feasibility heuristic repeatedly over a growing
   kernel (which heuristic: `kp.heuristic`, default `feaspump`).
 - **any registered feasibility-heuristic name** — run that heuristic standalone over the whole
-  problem. `feaspump` is the only one registered today, so in practice `method=feaspump` means one
-  `FeasibilityPump` over the whole problem, exactly as before.
+  problem. In practice `method=feaspump`, meaning one `FeasibilityPump` over the whole problem
+  exactly as before; a heuristic may refuse this role via `validateConfig()`, as `submip` does.
 
 `main.cpp` holds no reference to any concrete heuristic: it resolves the name through
 `resolveHeuristicName()` against `HeuristicsFactory`. Registering a new heuristic therefore makes it
@@ -256,7 +256,8 @@ generalisation. Adding a heuristic means implementing the interface and register
 does not change.
 
 The second implementation is `SubMipHeuristic` (`submip`), which solves the restricted problem with
-the backend's own MIP solver at `SolutionLimit=1`. Two differences from FP that surprise readers:
+the backend's own MIP solver at `SolutionLimit=1`. It is for `kp.heuristic=submip` only and refuses
+`method=submip`, because standalone it would be `method=solver` capped at `submip.nodeLimit`. Two differences from FP that surprise readers:
 its `# iterations` in the `.sol` file is **branch-and-bound nodes**, and it has **no budget shared
 across buckets** (each invocation gets a fresh `submip.nodeLimit`, unlike `fp.iterLimit`). It also
 requires `kp.forceBucketVarsIntoKernel=1`, because it reports no closest-to-feasible point of its

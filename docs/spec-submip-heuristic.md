@@ -9,11 +9,19 @@
 
 Add a second `FeasibilityHeuristic` implementation, registered as `submip`, that looks for integer
 feasibility by handing the restricted problem to the backend's own MIP solver and stopping at the
-first feasible solution. It must be usable in both roles the interface now supports:
+first feasible solution. It has exactly **one** intended role:
 
 - `kp.heuristic=submip` — driven per bucket by the Kernel Pump, so kernel growth is guided by an
-  exact sub-solver instead of a pump;
-- `method=submip` — standalone over the whole problem.
+  exact sub-solver instead of a pump.
+
+**`method=submip` is deliberately refused.** Standalone, this heuristic would solve the whole problem
+at `SolutionLimit=1`, which is precisely what `method=solver` already does — except capped at
+`submip.nodeLimit` and therefore strictly worse: an instance `method=solver` would solve can be
+reported as a failure purely because the node cap was hit (`timtab1` does exactly that at 500 nodes).
+Two ways to do one thing, one of them a trap. `validateConfig()` rejects it with a message pointing
+at `method=solver` — which also validates that hook's design: the restriction lives in the heuristic,
+and `main.cpp`'s generic `method=<name>` dispatch is untouched and still right for a future heuristic
+that *is* meaningful standalone.
 
 **Hard requirement from the outset: it must run under both `solver=cpx` and `solver=grb`.** The two
 backends differ in ways that silently break naive code (Section 4); designing for that now is much
@@ -319,7 +327,7 @@ classes — to implement or stub it, so prefer a virtual with a no-op default. L
 
 | # | Content | Done when |
 | --- | --- | --- |
-| **S1** | `submip` class + registration, CPLEX path only | **DONE** — both entry points run; regression suite 189/189 |
+| **S1** | `submip` class + registration, CPLEX path only | **DONE** — `kp.heuristic=submip` runs, `method=submip` refused; regression suite 189/189 |
 | **S2** | portability review against §4, plus the `isProvenInfeasible()` predicate if §4.1's inference proves too coarse | **DONE** — predicate added rather than inferring from limits; no solver status code appears in the heuristic |
 | **S3** | contract tests (§10) | **DONE** — 78/78 checks (25 new), and they caught a real precedence bug |
 | **S4** | Gurobi verification on a machine with a full licence | outstanding — cannot be done here (§4.4); the code is written to the contract and reviewed, not exercised |
@@ -336,8 +344,9 @@ boundary is explicit: do not hold S1–S7 open waiting for it.
 Extend `tests/heuristic_interface_test.cpp` (CPLEX-gated, currently 53 checks):
 
 1. **Factory and dispatch.** `submip` resolves via `resolveHeuristicName`, case-insensitively, and
-   appears in `registeredHeuristicNames()`. Both `method=submip` and `kp.heuristic=submip` are
-   accepted; this is free, given the M6 machinery.
+   appears in `registeredHeuristicNames()`, so `kp.heuristic=submip` is accepted — free, given the
+   M6 machinery. Name *resolution* is deliberately separate from whether a role is *permitted*:
+   `method=submip` resolves and is then rejected by `validateConfig` (item 6).
 2. **Outcome mapping**, on tiny purpose-built models where the answer is known by hand:
    - a feasible toy MIP → `{true, true}`, and the returned point passes `isSolutionFeasible`;
    - an infeasible toy MIP (e.g. `x1 + x2 = 5` over two binaries) → `{false, false}`;
@@ -350,10 +359,9 @@ Extend `tests/heuristic_interface_test.cpp` (CPLEX-gated, currently 53 checks):
    contrast to FP's globally shared `fp.iterLimit` — assert the contrast, since it is the single
    most likely wrong assumption.
 5. **The refusal** of `kp.heuristic=submip` with `kp.forceBucketVarsIntoKernel=0` (§7.1).
-6. **Standalone equivalence.** With `submip.nodeLimit=0` and `submip.feasEmphasis` matched to
-   `mipFeasEmphasis`, `method=submip` should find a solution on the same toy instances as
-   `method=solver`. Not a bitwise check — both stop at the first feasible solution found by the same
-   solver, so statuses should agree even when the points differ.
+6. **`method=submip` is refused**, and the message names `method=solver`. The same
+   `validateConfig` call with `drivenByKernelPump=true` and `forceBucketVarsIntoKernel=1` must not
+   throw, and `feaspump` must impose neither constraint.
 7. **The objective override is applied.** On a toy model whose original objective and whose
    `Σ binaries` objective prefer *different* first feasible solutions, check that
    `fp.forceSumVarsObjectiveInitialLP=1` with `MaxSense=0` yields the all-zeros-leaning solution and
