@@ -1,12 +1,37 @@
 # Kernel Pump and Feasibility Pump Collection
 
-At this moment, the code supports the Feasibility Pump (FP) versions [[1]](#1),[[2]](#2),[[3]](#3),[[4]](#4),[[5]](#5) and the improved method called Kernel Pump (KP).
+At this moment, the code supports the Feasibility Pump (FP) versions [[1]](#1),[[2]](#2),[[3]](#3),[[4]](#4),[[5]](#5) and the improved method called Kernel Pump (KP) [[6]](#6).
 This code was developed by adapting and extending the freely available [FeasPumpCollection](https://github.com/GioniMexi/FeasPumpCollection).
+
+## Publication
+
+This repository is the implementation accompanying the following open-access article, which
+describes the Kernel Pump method and reports the computational experiments reproducible with the
+scripts below:
+
+> L. Assunção, S. Urrutia, and A. C. Santos. **Kernel pump: Boosting the convergence of the
+> feasibility pump through a kernel search-based decomposition.** *Mathematical Programming
+> Computation*, 2026. [doi:10.1007/s12532-026-00333-2](https://doi.org/10.1007/s12532-026-00333-2)
+
+Published under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
+
+If you use this code, please cite:
+
+```bibtex
+@article{AssuncaoUrrutiaSantos2026,
+  author  = {Assun{\c{c}}{\~a}o, Lucas and Urrutia, Sebasti{\'a}n and Santos, Andr{\'e}a Cynthia},
+  title   = {Kernel pump: Boosting the convergence of the feasibility pump through a kernel
+             search-based decomposition},
+  journal = {Mathematical Programming Computation},
+  year    = {2026},
+  doi     = {10.1007/s12532-026-00333-2}
+}
+```
 
 ## Code overview
 
 All the code is available at the folder [src](src), being the file [src/main.cpp](src/main.cpp) the starting point. The main KP and FP codes are in [src/kernelpump.cpp](src/kernelpump.cpp) and [src/feaspump.cpp](src/feaspump.cpp). Interfaces to the supported LP solvers are in [src/cpxmodel.cpp](src/cpxmodel.cpp), [src/xprsmodel.cpp](src/xprsmodel.cpp), [src/scipmodel.cpp](src/scipmodel.cpp), and [src/pdlpmodel.cpp](src/pdlpmodel.cpp).
-Transformers (objects responsible for rounding a solution) are in [src/transformers.cpp](src/transformers.cpp). Different strategies for sorting variables before rounding the FP are in [src/rankers.cpp](src/rankers.cpp).
+Transformers (objects responsible for rounding a solution) are in [src/transformers.cpp](src/transformers.cpp). Different strategies for sorting variables before rounding the FP are in [src/ranking.cpp](src/ranking.cpp).
 
 ## Compilation instructions
 
@@ -132,7 +157,12 @@ Optimization,     4(1):77–86, 2007.
 M. Fischetti and D. Salvagnin. Feasibility pump 2.0. Mathematical Programming 
 Computation, 1(2-3):201–222, 2009
 
-<a id="">[5]</a> 
+<a id="5">[5]</a> 
 Berthold, T., Mexi, G., Salvagnin, D.: Using multiple reference vectors and objective
 scaling in the feasibility pump. EURO Journal on Computational Optimization
-11, 100066 
+11, 100066
+
+<a id="6">[6]</a> 
+L. Assunção, S. Urrutia, and A. C. Santos. Kernel pump: Boosting the convergence of the
+feasibility pump through a kernel search-based decomposition. Mathematical Programming
+Computation, 2026. doi:10.1007/s12532-026-00333-2 
