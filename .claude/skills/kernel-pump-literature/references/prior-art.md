@@ -109,8 +109,7 @@ interface makes it a drop-in rather than a rewrite.
 
 ## 6. Fix-propagate-repair — portfolio diving
 
-`papers/fix-propagate-repair-matheuristic.pdf` (duplicate:
-`papers/A_fix-propagate-repair_heuristic_for_mixed_integer.pdf`) · Salvagnin, Roberti & Fischetti ·
+`papers/fix-propagate-repair-matheuristic.pdf` · Salvagnin, Roberti & Fischetti ·
 *Math. Prog. Comp.* (2024), DOI 10.1007/s12532-024-00269-5
 
 Diving framework: fix-and-propagate **plus solution repair after each step**, the repair loosely
@@ -155,11 +154,3 @@ own right, rather than reasoned about from scratch.
 
 The **R-STOP-DP** set (`instances/r-stop-dp.txt`, robust Steiner team orienteering) is the other
 structured test set; its defining paper is not in `papers/`.
-
----
-
-## Housekeeping
-
-`papers/fix-propagate-repair-matheuristic.pdf` and
-`papers/A_fix-propagate-repair_heuristic_for_mixed_integer.pdf` are **the same paper** — identical
-size, identical first page, same DOI — and both are tracked in git. One could be removed.

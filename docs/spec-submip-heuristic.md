@@ -329,7 +329,7 @@ classes — to implement or stub it, so prefer a virtual with a no-op default. L
 | --- | --- | --- |
 | **S1** | `submip` class + registration, CPLEX path only | **DONE** — `kp.heuristic=submip` runs, `method=submip` refused; regression suite 189/189 |
 | **S2** | portability review against §4, plus the `isProvenInfeasible()` predicate if §4.1's inference proves too coarse | **DONE** — predicate added rather than inferring from limits; no solver status code appears in the heuristic |
-| **S3** | contract tests (§10) | **DONE** — 78/78 checks (25 new), and they caught a real precedence bug |
+| **S3** | contract tests (§10) | **DONE** — 79/79 checks (26 new), and they caught a real precedence bug |
 | **S4** | Gurobi verification on a machine with a full licence | outstanding — cannot be done here (§4.4); the code is written to the contract and reviewed, not exercised |
 | **S5** *(optional)* | `submip.reportRelaxationPoint` | gap fields meaningful for submip runs |
 | **S6** *(optional)* | `mipStart` interface method + both backends | measurable effect, or dropped |

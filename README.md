@@ -30,7 +30,8 @@ If you use this code, please cite:
 
 ## Code overview
 
-All the code is available at the folder [src](src), being the file [src/main.cpp](src/main.cpp) the starting point. The main KP and FP codes are in [src/kernelpump.cpp](src/kernelpump.cpp) and [src/feaspump.cpp](src/feaspump.cpp). Interfaces to the supported LP solvers are in [src/cpxmodel.cpp](src/cpxmodel.cpp), [src/xprsmodel.cpp](src/xprsmodel.cpp), [src/scipmodel.cpp](src/scipmodel.cpp), and [src/pdlpmodel.cpp](src/pdlpmodel.cpp).
+All the code is available at the folder [src](src), being the file [src/main.cpp](src/main.cpp) the starting point. The main KP and FP codes are in [src/kernelpump.cpp](src/kernelpump.cpp) and [src/feaspump.cpp](src/feaspump.cpp). Interfaces to the supported solvers are in [src/cpxmodel.cpp](src/cpxmodel.cpp), [src/grbmodel.cpp](src/grbmodel.cpp), [src/xprsmodel.cpp](src/xprsmodel.cpp), [src/scipmodel.cpp](src/scipmodel.cpp), and [src/pdlpmodel.cpp](src/pdlpmodel.cpp), all implementing the abstract `MIPModelI` interface in [include/kernelpump/mipmodel.h](include/kernelpump/mipmodel.h).
+The feasibility heuristic that KP drives at each step is also pluggable, behind `FeasibilityHeuristic` ([include/kernelpump/feasibility_heuristic.h](include/kernelpump/feasibility_heuristic.h)): the classical FP is one implementation, selected by default with `kp.heuristic=feaspump`.
 Transformers (objects responsible for rounding a solution) are in [src/transformers.cpp](src/transformers.cpp). Different strategies for sorting variables before rounding the FP are in [src/ranking.cpp](src/ranking.cpp).
 
 ## Compilation instructions
@@ -44,7 +45,13 @@ This project uses CMake. For compiling, perform the following steps on the root 
 - IF YOU NEED TO RUN IN **VERBOSE MODE**, comment line 'add_definitions(-DSILENT_EXEC)' in the main [CMAKELists.txt](CMakeLists.txt) file **BEFORE** executing 'make -j12'.
 - cd ..
 
-For now, only the CPLEX interface is ready for use.
+Solver support:
+
+- **CPLEX** (`solver=cpx`) is the reference backend, and the one all published experiments use. Pass `-DCPLEX_ROOT_DIR=...`.
+- **Gurobi** (`solver=grb`) is available but less exercised. Pass `-DGUROBI_HOME=...` (the full distribution, not the pip/conda `gurobipy` package, which ships no headers). Two things differ from CPLEX: a license file must be named explicitly with `grb.licenseFile=<path>`, so a user-level license is never picked up implicitly, and MIP presolve is not implemented (Gurobi's C API offers no crush/uncrush), so FP and KP run on the original model.
+- **XPRESS**, **SCIP** and **PDLP** model classes exist and compile conditionally, but are not production-ready.
+
+Solver availability is detected at configure time, so omitting a `-D..._DIR` simply leaves that backend out.
 
 Dependencies: a C++17 compiler, CMake ≥ 3.10, Boost headers and zlib (on Debian/Ubuntu: `sudo apt install build-essential cmake libboost-dev zlib1g-dev`).
 
