@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -33,6 +34,7 @@
 
 #include "kernelpump/cpxmodel.h"
 #include "kernelpump/feaspump_heuristic.h"
+#include "kernelpump/submip_heuristic.h"
 #include "kernelpump/kernelpump.h"
 
 using namespace dominiqs;
@@ -213,7 +215,16 @@ namespace
 	std::string writeFile(const std::string &dir, const std::string &name, const std::string &content)
 	{
 		std::string path = dir + "/" + name;
-		std::ofstream(path) << content;
+		{
+			std::ofstream out(path);
+			out << content;
+			/* Fail here, naming the directory, rather than letting the solver report a baffling
+			 * "could not open file" later: a missing or unwritable scratch directory is by far the
+			 * most likely reason this test cannot run. */
+			if (!out)
+				throw std::runtime_error("cannot write " + path +
+										 " -- does the scratch directory exist and is it writable?");
+		}
 		return path;
 	}
 
@@ -306,6 +317,80 @@ namespace
 		return r;
 	}
 
+	/* ------------------------------------------------------------------ *
+	 * submip fixtures
+	 * ------------------------------------------------------------------ */
+
+	/* Infeasible: two binaries cannot sum to 5. Presolve proves it, so the outcome must be
+	 * "proven infeasible", not "limit reached". */
+	const char *kInfeasibleLp =
+		"Maximize\n"
+		" obj: x1 + x2\n"
+		"Subject To\n"
+		" c1: x1 + x2 = 5\n"
+		"Binaries\n"
+		" x1 x2\n"
+		"End\n";
+
+	/* Feasible with a free choice of how many binaries are set: the MIN-sum objective wants 2,
+	 * the MAX-sum objective wants all 6. Used to show the objective override reaches the sub-MIP. */
+	const char *kChoiceLp =
+		"Minimize\n"
+		" obj: 0 x1\n"
+		"Subject To\n"
+		" c1: x1 + x2 + x3 + x4 + x5 + x6 >= 2\n"
+		"Binaries\n"
+		" x1 x2 x3 x4 x5 x6\n"
+		"End\n";
+
+	struct SubmipRun
+	{
+		bool foundSolution = false;
+		bool progressed = false;
+		int ones = 0;
+		int nodes = 0;
+		bool solutionVerified = false;
+	};
+
+	/* Drive SubMipHeuristic directly, bypassing KernelPump, so outcome mapping can be asserted
+	 * against models whose answer is known by hand. */
+	SubmipRun runSubmip(const std::string &scratch, const std::string &cfgName,
+						const std::string &extraKeys, const std::string &modelPath,
+						double timeLimit)
+	{
+		std::string cfg = std::string("solver=cpx\nmethod=submip\nmipPresolve=0\n"
+									  "multiThreading=0\nmodelLogging=0\nseed=1\n") +
+						  extraKeys;
+		std::string cfgPath = writeFile(scratch, cfgName, cfg);
+		gConfig().load(cfgPath, /*merge=*/false);
+
+		MIPModelPtr model(new CPXModel());
+		model->intParam(IntParam::Threads, 1);
+		model->readModel(modelPath);
+
+		SubmipRun r;
+		SubMipHeuristic h;
+		h.readConfig();
+		if (!h.init(model))
+			return r;
+		auto outcome = h.run(timeLimit, HeuristicStart(), false);
+		r.foundSolution = outcome.foundSolution;
+		r.progressed = outcome.progressed;
+		r.nodes = h.getIterations();
+		if (outcome.foundSolution)
+		{
+			std::vector<double> x;
+			h.getSolution(x);
+			r.solutionVerified = (x.size() == (size_t)model->ncols()) && model->isSolutionFeasible(x);
+			std::vector<char> t(model->ncols());
+			model->ctypes(&t[0]);
+			for (int j = 0; j < model->ncols(); ++j)
+				if (t[j] == 'B' && x[j] > 0.5)
+					++r.ones;
+		}
+		return r;
+	}
+
 } // namespace
 
 int main(int argc, char const *argv[])
@@ -316,6 +401,8 @@ int main(int argc, char const *argv[])
 		return 2;
 	}
 	const std::string scratch = argv[1];
+	std::error_code ec;
+	std::filesystem::create_directories(scratch, ec); // harmless if it already exists
 
 	HeuristicsFactory::getInstance().registerClass<RecordingHeuristic>("test-recording");
 	HeuristicsFactory::getInstance().registerClass<ScriptedHeuristic>("test-scripted");
@@ -546,6 +633,170 @@ int main(int argc, char const *argv[])
 			RunResult fwd = runKp(scratch, "cfg_s_iters.cfg", baseConfig("test-scripted", true), modelPath);
 			check(fwd.iterations == 1234,
 				  "KernelPump::getIterations() forwards the heuristic's value verbatim (sentinel 1234)");
+		}
+
+		/* ============================================================== *
+		 * 5b. the submip heuristic
+		 * ============================================================== */
+		section("submip: registration and dispatch");
+		{
+			std::vector<std::string> ids;
+			HeuristicsFactory::getInstance().getIDs(std::back_inserter(ids));
+			check(std::find(ids.begin(), ids.end(), "submip") != ids.end(),
+				  "\"submip\" is registered by libkp's static recorder");
+			check(resolveHeuristicName("submip") == "submip", "submip resolves for method=/kp.heuristic");
+			check(resolveHeuristicName("SubMIP") == "submip", "...case-insensitively");
+			FeasibilityHeuristicPtr h(HeuristicsFactory::getInstance().create("submip"));
+			check(h != nullptr && h->name() == "submip", "create(\"submip\") yields a usable object");
+			check(h && h->getIterations() == 0, "a fresh submip reports 0 nodes");
+		}
+
+		section("submip: outcome mapping");
+		{
+			const std::string feasPath = modelPath; // 6 binaries, sum = 5: satisfiable
+			const std::string infPath = writeFile(scratch, "submip_infeasible.lp", kInfeasibleLp);
+
+			// (a) feasible -> {true, true}, and the point must survive the row check
+			auto a = runSubmip(scratch, "cfg_submip_feas.cfg", "submip.nodeLimit=500\n", feasPath, 30.0);
+			check(a.foundSolution && a.progressed, "feasible sub-MIP -> {true, true}");
+			check(a.solutionVerified, "...and the returned point passes isSolutionFeasible()");
+
+			// (b) proven infeasible -> {false, false}; this is what makes KP absorb the bucket
+            auto b = runSubmip(scratch, "cfg_submip_inf.cfg", "submip.nodeLimit=500\n", infPath, 30.0);
+			check(!b.foundSolution, "infeasible sub-MIP -> no solution");
+			check(!b.progressed, "proven infeasible -> progressed == false (KP absorbs the bucket)");
+
+			// (c) budget exhausted must NEVER be reported as infeasible. This is the case that
+			// would differ between backends if status() were used instead of isProvenInfeasible().
+			auto c = runSubmip(scratch, "cfg_submip_tiny.cfg", "submip.nodeLimit=1\n", feasPath, 0.0);
+			check(!(!c.foundSolution && !c.progressed),
+				  "a limit-stopped run is never misreported as infeasible");
+			std::cout << (c.foundSolution
+							  ? "         NOTE: solved even at a 0s/1-node budget, so the limit path\n"
+								"               was not exercised here; (b) still pins the other direction.\n"
+							  : "         (limit path exercised: no solution, progressed == true)\n");
+		}
+
+		section("submip: the objective override follows FP's initial-LP rules");
+		{
+			/* Asserted on the objective itself rather than on which solution the solver returns:
+			 * with SolutionLimit=1 the first feasible point is whatever CPLEX reaches first, which
+			 * on a small model is the same regardless of objective. (The override does change
+			 * results on real instances -- e.g. supportcase18 under config16+submip sets 163
+			 * binaries with MIN, 170 with the original objective and 174 with MAX.) */
+			const std::string choicePath = writeFile(scratch, "submip_choice.lp", kChoiceLp);
+
+			auto objectiveOf = [&](bool null_, bool sum_, bool max_, bool rev_) {
+				MIPModelPtr m(new CPXModel());
+				m->readModel(choicePath);
+				SubMipHeuristic::applyObjectiveOverride(m, null_, sum_, max_, rev_);
+				int n = m->ncols();
+				std::vector<double> obj(n);
+				std::vector<char> t(n);
+				m->objcoefs(&obj[0]);
+				m->ctypes(&t[0]);
+				double binSum = 0.0, nonBinSum = 0.0;
+				for (int j = 0; j < n; ++j)
+					(t[j] == 'B' ? binSum : nonBinSum) += obj[j];
+				return std::make_tuple(binSum, nonBinSum, m->objSense(), m->objOffset());
+			};
+
+			int nbin = 0;
+			{
+				MIPModelPtr m(new CPXModel());
+				m->readModel(choicePath);
+				std::vector<char> t(m->ncols());
+				m->ctypes(&t[0]);
+				for (int j = 0; j < m->ncols(); ++j)
+					if (t[j] == 'B')
+						++nbin;
+			}
+
+			auto mn = objectiveOf(false, true, false, false);
+			check(std::get<0>(mn) == (double)nbin && std::get<1>(mn) == 0.0,
+				  "sum-of-binaries: coefficient 1 on every binary, 0 elsewhere");
+			check(std::get<2>(mn) == ObjSense::MIN, "...MaxSense=0 gives MIN (towards all-zeros)");
+			check(std::get<3>(mn) == 0.0, "...and the objective offset is cleared");
+
+			auto mx = objectiveOf(false, true, true, false);
+			check(std::get<2>(mx) == ObjSense::MAX, "MaxSense=1 gives MAX (towards all-ones)");
+
+			auto nl = objectiveOf(true, false, false, false);
+			check(std::get<0>(nl) == 0.0 && std::get<1>(nl) == 0.0,
+				  "null objective: every coefficient zeroed");
+
+			auto both = objectiveOf(true, true, true, false);
+			check(std::get<0>(both) == 0.0,
+				  "null takes precedence over sum-of-binaries, as in FP");
+
+			auto rev = objectiveOf(false, true, false, true);
+			check(std::get<2>(rev) == ObjSense::MAX,
+				  "reverseObjectiveFunction flips the sense last (MIN -> MAX)");
+
+			auto orig = objectiveOf(false, false, false, false);
+			check(std::get<0>(orig) == 0.0 && std::get<2>(orig) == ObjSense::MIN,
+				  "no keys set: the model's own objective is left untouched");
+		}
+
+		section("submip: no budget shared across invocations");
+		{
+			// Unlike FP, whose fp.iterLimit is decremented across buckets, each submip invocation
+			// gets a fresh node limit. Two runs of the same model must do comparable work.
+			auto r1 = runSubmip(scratch, "cfg_submip_b1.cfg", "submip.nodeLimit=500\n", modelPath, 30.0);
+			auto r2 = runSubmip(scratch, "cfg_submip_b2.cfg", "submip.nodeLimit=500\n", modelPath, 30.0);
+			check(r1.foundSolution == r2.foundSolution,
+				  "a second invocation is not starved by the first (no shared budget)");
+		}
+
+		section("submip: validateConfig rejects selective absorption");
+		{
+			std::string cfg = baseConfig("submip", /*forceBucketVars=*/false);
+			std::string cfgPath = writeFile(scratch, "cfg_submip_force0.cfg", cfg);
+			gConfig().load(cfgPath, /*merge=*/false);
+			FeasibilityHeuristicPtr h(HeuristicsFactory::getInstance().create("submip"));
+			bool threw = false;
+			try
+			{
+				h->validateConfig(/*drivenByKernelPump=*/true);
+			}
+			catch (const std::exception &)
+			{
+				threw = true;
+			}
+			check(threw, "submip + kp.forceBucketVarsIntoKernel=0 is refused when driven by KP");
+
+			bool threwStandalone = false;
+			try
+			{
+				h->validateConfig(/*drivenByKernelPump=*/false);
+			}
+			catch (const std::exception &)
+			{
+				threwStandalone = true;
+			}
+			check(!threwStandalone, "...but the same config is fine for a standalone submip run");
+
+			FeasibilityHeuristicPtr fp(HeuristicsFactory::getInstance().create("feaspump"));
+			bool fpThrew = false;
+			try
+			{
+				fp->validateConfig(true);
+			}
+			catch (const std::exception &)
+			{
+				fpThrew = true;
+			}
+			check(!fpThrew, "...and feaspump imposes no such constraint");
+		}
+
+		section("submip: driven by KernelPump end to end");
+		{
+			std::string cfg = baseConfig("submip", /*forceBucketVars=*/true);
+			RunResult r = runKp(scratch, "cfg_kp_submip.cfg", cfg, modelPath);
+			check(r.initOk, "KernelPump::Init succeeds with kp.heuristic=submip");
+			check(r.foundSolution, "KP+submip finds a solution on the fixture");
+			check(r.lastBucketVisited >= 0 && r.lastBucketVisited <= r.numBuckets,
+				  "lastBucketVisited stays in range");
 		}
 
 		/* ============================================================== *

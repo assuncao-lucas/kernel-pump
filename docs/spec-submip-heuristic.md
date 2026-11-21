@@ -1,6 +1,6 @@
 # Spec: a sub-MIP feasibility heuristic (`submip`), portable across CPLEX and Gurobi
 
-**Status:** proposed
+**Status:** S1–S3 implemented and tested on CPLEX; S4–S8 outstanding
 **Branch:** to be created from `generic_interface`
 **Scope:** `include/kernelpump/`, `src/`, `tests/`, `settings/`, docs
 **Prerequisite:** the `FeasibilityHeuristic` interface (`docs/spec-heuristic-interface.md`, M0–M6, landed)
@@ -39,8 +39,11 @@ sub-solver, separating "the decomposition helps" from "the pump helps".
 
 ## 2. Non-goals
 
-- No change to `FeasibilityPump`, to `KernelPump`'s loop, or to the `FeasibilityHeuristic`
-  interface itself, except the one optional extension in §7 (MIP starts), which is a later milestone.
+- No change to `FeasibilityPump` or to `KernelPump`'s loop.
+- Two additions were needed beyond the original plan, both small and both benefiting every
+  heuristic rather than just this one (see §13):
+  `MIPModelI::isProvenInfeasible()` and `FeasibilityHeuristic::validateConfig()`. The MIP-start
+  extension in §7.3 remains deferred.
 - No change to the `.sol` format (`results/` parses it by line offset — see
   `docs/spec-heuristic-interface.md` §7.4).
 - No new default behaviour: every committed config keeps `kp.heuristic=feaspump`, so the regression
@@ -316,10 +319,10 @@ classes — to implement or stub it, so prefer a virtual with a no-op default. L
 
 | # | Content | Done when |
 | --- | --- | --- |
-| **S1** | `submip` class + registration, CPLEX path only | `method=submip` and `kp.heuristic=submip` both run; regression suite still 190/190 |
-| **S2** | portability review against §4, plus the `isProvenInfeasible()` predicate if §4.1's inference proves too coarse | outcome classification uses no solver status code anywhere |
-| **S3** | contract tests (§10) | all pass |
-| **S4** | Gurobi verification on a machine with a full licence | `solver=grb` with `kp.heuristic=submip` runs on real instances |
+| **S1** | `submip` class + registration, CPLEX path only | **DONE** — both entry points run; regression suite 189/189 |
+| **S2** | portability review against §4, plus the `isProvenInfeasible()` predicate if §4.1's inference proves too coarse | **DONE** — predicate added rather than inferring from limits; no solver status code appears in the heuristic |
+| **S3** | contract tests (§10) | **DONE** — 78/78 checks (25 new), and they caught a real precedence bug |
+| **S4** | Gurobi verification on a machine with a full licence | outstanding — cannot be done here (§4.4); the code is written to the contract and reviewed, not exercised |
 | **S5** *(optional)* | `submip.reportRelaxationPoint` | gap fields meaningful for submip runs |
 | **S6** *(optional)* | `mipStart` interface method + both backends | measurable effect, or dropped |
 | **S7** | **baseline experiment** (in scope): KP+submip vs KP+feaspump on the same configs, plus FP\* and the plain solver for reference | a defensible answer to "decomposition or pump?", reporting solution quality as well as success rate |
@@ -417,3 +420,72 @@ Answered 2026-11-21; recorded here so the implementer does not re-open them.
    Practical consequence for whoever implements this: **finish at S7 and stop.** Report the baseline
    result, and do not treat the absence of S8 as unfinished work. If the baseline comes out flat,
    that is itself the useful finding and S8 may not be worth running.
+
+## 13. Implementation notes (added after S1–S3)
+
+What the implementation actually needed beyond the plan, and what the tests caught.
+
+### Two interface additions
+
+**`MIPModelI::isProvenInfeasible()`** — §4.1 offered a choice between inferring "infeasible versus
+limit reached" from elapsed time and node counts, or adding a predicate. The predicate won: the
+inference was fragile and would have been wrong whenever a sub-problem was both infeasible and
+limited. It is a `virtual` with a default of `false` (not pure), so the non-production XPRESS, SCIP
+and PDLP backends need no change and simply never claim infeasibility — the conservative direction.
+Overridden in `CPXModel` (`CPX_STAT_INFEASIBLE`, `CPX_STAT_INForUNBD`, `CPXMIP_INFEASIBLE`,
+`CPXMIP_INForUNBD`) and `GRBModel` (`GRB_INFEASIBLE`, `GRB_INF_OR_UNBD`), both deliberately
+excluding every time-limit and abort status that `isInfeasibleOrTimeReached()` folds in.
+
+**`FeasibilityHeuristic::validateConfig(bool drivenByKernelPump)`** — the refusal in §7.1 was first
+written inside `readConfig()`, where it was useless: that runs inside `main`'s try/catch, whose
+handler goes through `consoleError()` and is muted by `-DSILENT_EXEC`, so a refused run exited 0
+with no `.sol` file. Exactly the trap already documented for `kp.heuristic`. The hook is called from
+`main.cpp`'s early validation block instead, before the muted handler, so the message is seen. It
+takes the driver role because the constraint applies only under KP, and it is a no-op by default, so
+every future heuristic gets a place to reject a configuration loudly without `main.cpp` learning
+anything about it.
+
+### A bug the tests caught
+
+The first implementation combined the two objective branches into
+`if (forceNull || forceSumVars) { ...; if (forceSumVars) ... }`, which **inverts FP's precedence**:
+FP has `if (forceNull) ... else if (forceSumVars) ...`, so null wins when both keys are set, whereas
+the combined branch let sum-of-binaries win. Caught by the precedence assertion in §10(7), which is
+the reason that test checks the objective *mechanically* rather than through which solution the
+solver returns — with `SolutionLimit=1` a small model yields the same first solution whatever the
+objective, so a behavioural test would have passed while the precedence was wrong. The
+implementation is now written as the same if/else-if chain as FP, with a comment saying why.
+
+### First evidence, ahead of S7
+
+Not an experiment, just what fell out of testing, on `seed=1` with a 30 s limit:
+
+- `enlight_hard` under `config16`: KP+feaspump **fails** (it is a recorded failure in the golden
+  set, 2005 pump iterations), KP+submip **finds a solution**, visiting both buckets.
+- The objective override measurably reaches the sub-MIP on real instances: `supportcase18` under
+  `config16`+submip sets 163 binaries with sum-of-binaries/MIN, 170 with the original objective and
+  174 with MAX — the ordering the all-zeros/all-ones reading predicts.
+- `timtab1` standalone stops at exactly 500 nodes without a solution, confirming the node limit is
+  in force and that such a run is reported as limit-reached rather than infeasible.
+
+Encouraging, but three instances at one seed is not a result. S7 is still the experiment.
+
+### Regression result
+
+189/189 identical against the `kernel-pump-regression` golden set, so nothing on the default path
+moved. Getting there cost one detour: a `config21`/`air05` case reported a difference and turned out
+to be **bistable across sittings** — `adjudicate.sh` showed baseline and candidate agreeing across
+five runs each on a value that differed from the record, which was itself a re-record from the
+previous session that had drifted back to its original M0 value. It is excluded now (the set went
+190 → 189) and the regression skill records the rule: if a case goes stale twice, exclude it rather
+than re-record it.
+
+### Still to do
+
+- **S4**: Gurobi. Written to the contract in §4 and reviewed, never compiled — there is no
+  `gurobi_c.h` on the dev machine. Treat `solver=grb` as unverified until someone runs it.
+- **S5/S6**: optional, not started.
+- **S7**: the baseline experiment. `settings/all/config26.cfg` exists for it — `config16` with
+  `kp.heuristic=submip` and nothing else changed, so the pair isolates pump versus sub-solver. It is
+  deliberately **not** in `settings/settings_list.txt`, so the paper's reproduction script is
+  unaffected.

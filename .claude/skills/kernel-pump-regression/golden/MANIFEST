@@ -44,16 +44,22 @@ record. The machine's timing regime had shifted since capture, so the recorded v
 simply no longer reproducible by the binary it came from. A difference against the golden
 file is therefore NOT evidence of a regression on its own. Use tools/adjudicate.sh, which
 runs both binaries N times and distinguishes REGRESSION / FLAKY / STALE GOLDEN / OK.
-Resolution: s_config21_air05_2.sol was re-recorded from kp_baseline (stable 3/3 in two
-independent measurements); config21/air05/seed=3 was excluded, since a 3-run baseline
-repeat had produced 2 distinct outcomes (stability-air05.tsv). Final set: 190 cases.
+Resolution: config21/air05/seed=3 was excluded (a 3-run baseline repeat produced 2
+distinct outcomes, stability-air05.tsv), and seed=2 was re-recorded from kp_baseline
+after proving stable 3/3 twice.
+
+That re-record did not hold. One session later seed=2 drifted BACK to its original
+M0 value, with baseline and candidate agreeing across 5 runs each: the case is
+bistable across sittings while self-consistent within one, so no stability screen
+catches it. It is now excluded too. Final set: 189 cases.
+If a case goes stale twice, exclude it rather than re-recording it.
 The 5 exclusions are wall-clock-sensitive rather than clock-limited: none hit its
 time limit, but the per-bucket budget time_left/(num_buckets+1) shifts slightly
 between runs, so a bucket completes a different number of FP iterations.
 
 coverage of the golden set
 --------------------------
-  190 cases, of which 93 have 'last bucket visited' > 0 (bucket loop actually ran)
+  189 cases, of which 93 have 'last bucket visited' > 0 (bucket loop actually ran)
   largest '# iterations' in the set: 12000
   cases exhausting fp.iterLimit exactly (shared-budget signature) are the strongest
   detectors of a per-bucket budget reset regression.

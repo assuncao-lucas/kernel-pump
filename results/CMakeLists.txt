@@ -70,7 +70,7 @@ find_package(GUROBI)
 find_package(Threads)
 
 # Define libkp
-add_library(libkp STATIC ../src/feaspump.cpp ../src/feaspump_heuristic.cpp ../src/feasibility_heuristic.cpp ../src/transformers.cpp ../src/ranking.cpp ../src/solution.cpp ../src/kernelpump.cpp)
+add_library(libkp STATIC ../src/feaspump.cpp ../src/feaspump_heuristic.cpp ../src/feasibility_heuristic.cpp ../src/submip_heuristic.cpp ../src/transformers.cpp ../src/ranking.cpp ../src/solution.cpp ../src/kernelpump.cpp)
 target_link_libraries(libkp PUBLIC Utils::Lib fmt::fmt Prop::Lib)
 add_library(Kp::Lib ALIAS libkp)
 

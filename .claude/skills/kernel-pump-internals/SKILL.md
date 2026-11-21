@@ -255,6 +255,13 @@ closest with. That contract is the abstract `FeasibilityHeuristic`
 generalisation. Adding a heuristic means implementing the interface and registering it; `KernelPump`
 does not change.
 
+The second implementation is `SubMipHeuristic` (`submip`), which solves the restricted problem with
+the backend's own MIP solver at `SolutionLimit=1`. Two differences from FP that surprise readers:
+its `# iterations` in the `.sol` file is **branch-and-bound nodes**, and it has **no budget shared
+across buckets** (each invocation gets a fresh `submip.nodeLimit`, unlike `fp.iterLimit`). It also
+requires `kp.forceBucketVarsIntoKernel=1`, because it reports no closest-to-feasible point of its
+own. See `docs/spec-submip-heuristic.md` and the `submip.*` keys in `references/config-reference.md`.
+
 Three things that bite:
 
 - **One instance per run.** Implementations may carry state across buckets and FP does — see

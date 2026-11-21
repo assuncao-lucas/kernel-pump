@@ -143,9 +143,21 @@ int main(int argc, char const *argv[])
 
 		// same reasoning: fail loudly on a mistyped LP method rather than silently producing nothing
 		KernelPump::ParseLpMethod(gConfig().get("kp.kernelRepairLpMethod", std::string("default")));
+
+		// and let the heuristic itself reject a configuration it cannot work with, here rather
+		// than from readConfig()/init(), so the message is not swallowed by the handler below
+		FeasibilityHeuristicPtr probe(
+			HeuristicsFactory::getInstance().create(resolveHeuristicName(heuristicName)));
+		if (probe)
+			probe->validateConfig(/*drivenByKernelPump=*/true);
 	}
 	else if (solveHeuristic)
+	{
 		LOG_ITEM("heuristic", standaloneHeuristic);
+		FeasibilityHeuristicPtr probe(HeuristicsFactory::getInstance().create(standaloneHeuristic));
+		if (probe)
+			probe->validateConfig(/*drivenByKernelPump=*/false);
+	}
 
 	MIPModelPtr model;
 	StopWatch watch;

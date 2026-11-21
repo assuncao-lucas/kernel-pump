@@ -119,8 +119,9 @@ Any config key can be overridden inline: `./build/kp instance.mps -c config.cfg 
 
 `method=` (in the config or as an override) selects the code path in `src/main.cpp`: `solver` (plain
 CPLEX MIP solve), `kernelpump`, or **the name of any registered feasibility heuristic** to run it
-standalone over the whole problem — `feaspump` is one such name, and is the only one registered today.
-Matching is case-insensitive. Config files live in `settings/all/*.cfg` and are grouped/listed
+standalone over the whole problem. Two are registered: `feaspump` (the classical FP) and `submip`
+(hand the problem to the backend's own MIP solver, stopping at the first feasible solution — see
+`docs/spec-submip-heuristic.md`). Matching is case-insensitive. Config files live in `settings/all/*.cfg` and are grouped/listed
 in `settings/settings_list.txt`. `fp.*` keys configure `FeasibilityPump`, `kp.*` keys configure `KernelPump`;
 see any file under `settings/all` for the full key set. `TESTSET.md` documents what each numbered config
 (config1…config25) varies, and the README maps the article's FP*/FP-/FP+/KP*/KP-/KP+ naming onto specific
@@ -213,7 +214,8 @@ one of three code paths based on `method=`:
   `HeuristicsFactory` via the `kp.heuristic` key (default `feaspump`). The classical FP is supplied by the
   thin adapter `FeasibilityPumpHeuristic` (`include/kernelpump/feaspump_heuristic.h`, registered in
   `src/feaspump_heuristic.cpp`), which leaves `FeasibilityPump` itself untouched. To add another heuristic,
-  implement the interface and register it in a factory recorder — no change to `KernelPump` is needed. The
+  implement the interface and register it in a factory recorder — no change to `KernelPump` is needed;
+  `submip` (`src/submip_heuristic.cpp`) is the second implementation and the worked example. The
   contract that matters most: **one instance per KP run**, `readConfig()` once, then `init()`+`run()` per
   bucket, because FP's iteration limits are a budget shared across all buckets. The design, the lifecycle
   contract and the behaviour-preservation traps are written up in `docs/spec-heuristic-interface.md`.

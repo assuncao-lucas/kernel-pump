@@ -114,6 +114,7 @@ public:
 	void updateModelVarBounds(std::optional<boost::dynamic_bitset<>> vars_entering_problem, std::optional<boost::dynamic_bitset<>> vars_leaving_problem) override;
 	void findSetOfConflictingVariables(boost::dynamic_bitset<> inactive_binary_vars, std::vector<int> &conflicting_constraints, std::vector<int> &conflicting_vars, bool optimize_set, double time_limit) override;
 	bool isInfeasibleOrTimeReached() override;
+	bool isProvenInfeasible() const override;
 	/* Access to underlying Gurobi objects */
 	GRBenv *getMasterEnv() const { return env.get(); }
 	GRBmodel *getModel() const { return model; }

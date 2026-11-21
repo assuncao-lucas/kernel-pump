@@ -125,6 +125,23 @@ namespace dominiqs
 
 		/** Registered name, for logging. */
 		virtual std::string name() const = 0;
+
+		/**
+		 * Reject a configuration this heuristic cannot work with. Throw std::runtime_error with a
+		 * message naming the offending keys.
+		 *
+		 * Called by main.cpp BEFORE the try/catch around the solve, because that handler reports
+		 * through consoleError() and is therefore muted by -DSILENT_EXEC: a throw from readConfig()
+		 * or init() would exit 0 with no .sol file, which in a batch run is indistinguishable from
+		 * a legitimate non-result. Validation that must be seen belongs here.
+		 *
+		 * @param drivenByKernelPump true when the heuristic will be driven per bucket by
+		 *        KernelPump, false when it runs standalone over the whole problem; some
+		 *        constraints only apply in one of the two roles.
+		 *
+		 * Default: no constraints.
+		 */
+		virtual void validateConfig(bool drivenByKernelPump) const {}
 	};
 
 	typedef std::unique_ptr<FeasibilityHeuristic> FeasibilityHeuristicPtr;
