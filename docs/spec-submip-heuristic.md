@@ -318,11 +318,15 @@ classes — to implement or stub it, so prefer a virtual with a no-op default. L
 | --- | --- | --- |
 | **S1** | `submip` class + registration, CPLEX path only | `method=submip` and `kp.heuristic=submip` both run; regression suite still 190/190 |
 | **S2** | portability review against §4, plus the `isProvenInfeasible()` predicate if §4.1's inference proves too coarse | outcome classification uses no solver status code anywhere |
-| **S3** | contract tests (§9 below) | all pass |
+| **S3** | contract tests (§10) | all pass |
 | **S4** | Gurobi verification on a machine with a full licence | `solver=grb` with `kp.heuristic=submip` runs on real instances |
 | **S5** *(optional)* | `submip.reportRelaxationPoint` | gap fields meaningful for submip runs |
 | **S6** *(optional)* | `mipStart` interface method + both backends | measurable effect, or dropped |
-| **S7** | experiments: KP+submip vs KP+feaspump vs plain solver, on the protocol in the literature skill | results, with solution quality as well as success rate |
+| **S7** | **baseline experiment** (in scope): KP+submip vs KP+feaspump on the same configs, plus FP\* and the plain solver for reference | a defensible answer to "decomposition or pump?", reporting solution quality as well as success rate |
+| **S8** *(follow-up, not part of this work)* | **contender experiments**: submip as a method in its own right and as a portfolio member, on the full published protocol | deferred — see §12.3 |
+
+The implementation work ends at S7. S8 is a separate piece of research, listed only so the scope
+boundary is explicit: do not hold S1–S7 open waiting for it.
 
 ## 10. Test plan
 
@@ -387,8 +391,8 @@ Answered 2026-11-21; recorded here so the implementer does not re-open them.
    `submip.nodeLimit` so it can be swept later, but 500 is the default and needs no justification
    beyond the citation.
 
-3. **Still open: the experimental role of `submip`.** This is a framing question about S7, not about
-   the code, and nothing in the implementation depends on it. The two readings:
+3. **Experimental role — settled: both, but only the baseline is in scope here.** Nothing in the
+   implementation depends on this; it decides which experiments run when. The two readings:
 
    - **As a baseline.** Run KP with `submip` and compare against KP with `feaspump`. Both use the
      same kernel and the same buckets, so the only thing that differs is what solves each
@@ -402,7 +406,14 @@ Answered 2026-11-21; recorded here so the implementer does not re-open them.
      any single strategy, and KP⁻/KP⁺/KP\* are already a natural portfolio that `submip` would
      extend.
 
-   The difference is what gets measured and reported, not what gets built: the baseline reading
-   needs only KP+submip vs KP+feaspump on the same configs; the contender reading needs the full
-   protocol from the literature skill against every other method. Both are possible from the same
-   implementation, so this can be decided after S1–S4 are done.
+   **Both are wanted, and they are sequenced.** The baseline comparison is part of delivering
+   `submip` (S7): it is cheap — KP+submip against KP+feaspump on the same configs, since only the
+   sub-problem solver differs — and it is what tells you whether the new heuristic is worth
+   pursuing at all. The contender experiments are **explicitly not part of this work** (S8): they
+   need the full published protocol (3600 s, 3 seeds, all three test sets, every competing method,
+   Cochran's Q then pairwise McNemar with Holm correction) and they are a research exercise, not an
+   implementation step.
+
+   Practical consequence for whoever implements this: **finish at S7 and stop.** Report the baseline
+   result, and do not treat the absence of S8 as unfinished work. If the baseline comes out flat,
+   that is itself the useful finding and S8 may not be worth running.
