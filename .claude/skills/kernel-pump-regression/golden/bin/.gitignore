@@ -1,0 +1,3 @@
+# The 34 MB baseline binary is deliberately NOT tracked: it is reproducible from the commit named
+# in BASELINE_COMMIT, and committing it would bloat the repository permanently.
+kp_baseline

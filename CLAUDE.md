@@ -24,6 +24,37 @@ result tables/statistics for an accompanying research article.
 
 On Debian/Ubuntu: `sudo apt install libboost-dev zlib1g-dev cmake build-essential`.
 
+### Troubleshooting: `cmake` will not start at all
+
+```
+cmake: error while loading shared libraries: libldap-2.5.so.0: cannot open shared object file
+```
+
+This is a machine configuration bug, not a project one, and it also breaks `/usr/bin/curl`. Some
+vendor packages add their private dependency directory to the **global** loader path via
+`/etc/ld.so.conf.d/`, where an older bundled library shadows the system copy for every process. On
+this project's dev machine it is Dell's `dca-enabler`: `/etc/ld.so.conf.d/dcaenabler.conf` points at
+`/usr/lib/dcaenabler/`, which holds an Ubuntu-22 `libcurl.so.4` linked against OpenLDAP 2.5, while
+Ubuntu 26.04 ships OpenLDAP 2.6 (`libldap.so.2`). `cmake` links libcurl, so it cannot start.
+
+Permanent fix (needs root). Safe here because that package contains only libraries — no
+executables — and its daemon `dcae.service` is already dead on this distro (`/usr/sbin/dcae` is also
+missing `libdbus-glib-1.so.2`, so it exits 127 and systemd restarts it forever):
+
+```bash
+sudo mv /etc/ld.so.conf.d/dcaenabler.conf /etc/ld.so.conf.d/dcaenabler.conf.disabled
+sudo ldconfig
+# to undo: sudo mv ...conf.disabled ...conf && sudo ldconfig
+```
+
+Until that is done the batch scripts cope on their own: they source `cmake_env.sh`, which prepends
+the system library directory to `LD_LIBRARY_PATH` **only if** `cmake` cannot otherwise start, so it
+is inert on a healthy machine. For a manual build in a shell where `cmake` fails, do the same:
+
+```bash
+. ./cmake_env.sh      # from the repository root
+```
+
 On Windows: Visual Studio Build Tools 2022 (C++ workload), CMake, Ninja and [vcpkg](https://github.com/microsoft/vcpkg)
 with the `VCPKG_ROOT` env var set. Dependencies are declared in `vcpkg.json` (manifest mode) and installed
 automatically at configure time. Configure from a VS Developer shell (or VS Code with CMake Tools, which
@@ -87,13 +118,41 @@ the embedded hash to be current.
 Any config key can be overridden inline: `./build/kp instance.mps -c config.cfg kp.maxBucketSize=20`.
 
 `method=` (in the config or as an override) selects the code path in `src/main.cpp`: `solver` (plain
-CPLEX MIP solve), `feaspump`, or `kernelpump`. Config files live in `settings/all/*.cfg` and are grouped/listed
+CPLEX MIP solve), `kernelpump`, or **the name of any registered feasibility heuristic** to run it
+standalone over the whole problem — `feaspump` (the classical FP) is the only one for which that
+makes sense today. Matching is case-insensitive. The other registered heuristic, `submip`, is for
+`kp.heuristic=submip` only and **refuses `method=submip`**, because standalone it would be
+`method=solver` capped at `submip.nodeLimit` (see `docs/spec-submip-heuristic.md`). Config files live in `settings/all/*.cfg` and are grouped/listed
 in `settings/settings_list.txt`. `fp.*` keys configure `FeasibilityPump`, `kp.*` keys configure `KernelPump`;
 see any file under `settings/all` for the full key set. `TESTSET.md` documents what each numbered config
 (config1…config25) varies, and the README maps the article's FP*/FP-/FP+/KP*/KP-/KP+ naming onto specific
 config numbers.
 
-There is no unit test suite. Correctness is checked at runtime: after `kp` finds a solution it re-verifies
+There is no general unit test suite, but two standalone test executables exist, each built only when its
+dependency is found and run manually:
+
+- `heuristic_interface_test <scratch dir>` (`tests/heuristic_interface_test.cpp`, needs CPLEX) — contract
+  tests for the `FeasibilityHeuristic` interface: it registers test-only heuristics with
+  `HeuristicsFactory` and asserts how `KernelPump` drives them (one instance per run, `readConfig()` once,
+  warm-start forwarding, per-bucket time budgets) plus every kernel-absorption branch, including the ones
+  no config in `settings/all` reaches. Exits non-zero on failure.
+- `grbmodel_test <license file> <scratch dir>` (`tests/grbmodel_test.cpp`, needs Gurobi).
+
+For *behavioural* regressions — a change that compiles and still finds solutions but has altered the
+search trajectory, and therefore the article's numbers — use the **`kernel-pump-regression` skill**
+(`.claude/skills/kernel-pump-regression/`):
+
+```bash
+.claude/skills/kernel-pump-regression/verify.sh          # ~30 min, tests ./build/kp
+```
+
+It replays 191 recorded baseline runs (KP, FP and plain-solver configs over 17 MIPLIB instances and
+3 seeds) and diffs every `.sol` field except the two wall-clock ones. Run it on an idle machine and
+never compile while it runs: the per-bucket budget is `time_left/(num_buckets+1)`, taken from the
+wall clock, so KP is not unconditionally reproducible and CPU contention alone can change a result.
+The skill explains how to tell a flaky case from a real regression.
+
+Beyond those, correctness is checked at runtime: after `kp` finds a solution it re-verifies
 every constraint against it (see the feasibility double-check block near the end of `src/main.cpp`) and throws
 if any constraint is violated. Statistical validation across configs (e.g. McNemar's test) is done separately
 in `results/src/McNemar_test.py` against `results/build`-generated CSVs — requires `statsmodels` and `pandas`.
@@ -114,6 +173,22 @@ land in `solutions/<run>/s_<config>_<instance>_<seed>.sol`, alongside `sorted_fi
 instance list actually used, useful for reproducing random samples) and `summary.csv` (one row per
 instance × config × seed with `status` and `total time` as the key columns).
 
+## The published paper
+
+The method implemented here is published, open access:
+
+> Lucas Assunção, Sebastián Urrutia, Andréa Cynthia Santos. **Kernel pump: Boosting the convergence
+> of the feasibility pump through a kernel search-based decomposition.** *Mathematical Programming
+> Computation*, 2026. <https://doi.org/10.1007/s12532-026-00333-2> (CC BY 4.0)
+
+`papers/` holds the FP-family prior art it builds on (FP, FP 2.0, Boosting FP, multiple reference
+vectors, Feasibility Jump, fix-propagate-repair, kernel search). The **`kernel-pump-literature`
+skill** maps the paper's algorithm and parameters onto the `kp.*`/`fp.*` keys, records which
+variants the authors already tested and rejected, marks which code paths are published versus
+experimental, and states the experimental protocol a new result must match. Consult it before
+designing any algorithmic change — `README.md` maps the article's FP*/FP-/FP+/KP*/KP-/KP+ naming
+onto config numbers.
+
 ## Architecture
 
 `src/main.cpp` is the single CLI entry point. It parses args/config (`gConfig()`, `dominiqs` utils), constructs
@@ -122,14 +197,29 @@ a solver-specific `MIPModelPtr` (`CPXModel`/`XPRSModel`/`SCIPModel`/`PDLPModel`,
 one of three code paths based on `method=`:
 
 - **`solver`** — plain MIP solve via the underlying solver, stopped at the first feasible solution.
-- **`feaspump`** — `FeasibilityPump` (`src/feaspump.cpp` / `include/kernelpump/feaspump.h`): the classical FP
-  loop (LP relax → round → re-optimize) with pluggable rounding via `transformers.cpp` and variable-selection
-  strategies via `ranking.cpp`.
+- **a feasibility-heuristic name** (e.g. `feaspump`) — run that heuristic standalone over the whole
+  problem, through the `FeasibilityHeuristic` interface. `main.cpp` resolves the name against
+  `HeuristicsFactory` with `resolveHeuristicName()` and knows nothing about any concrete heuristic,
+  so registering a new one makes it immediately available here *and* as `kp.heuristic`.
+  `feaspump` is `FeasibilityPump` (`src/feaspump.cpp` / `include/kernelpump/feaspump.h`): the classical
+  FP loop (LP relax → round → re-optimize) with pluggable rounding via `transformers.cpp` and
+  variable-selection strategies via `ranking.cpp`.
 - **`kernelpump`** — `KernelPump` (`src/kernelpump.cpp` / `include/kernelpump/kernelpump.h`): builds an initial
   "kernel" of variables plus a sequence of "buckets" of remaining binary variables (grouped by relaxation
   layers or variable dependency — see `buildBucketsByRelaxationLayers`/`buildBucketsConsideringVariableDependency`
-  in `TESTSET.md`/config files), then incrementally grows the kernel bucket-by-bucket, delegating to an
-  internal `FeasibilityPump` instance (`feasibility_pump_`) at each step to find/repair integer feasibility.
+  in `TESTSET.md`/config files), then incrementally grows the kernel bucket-by-bucket, delegating at each
+  step to a **feasibility heuristic** to find/repair integer feasibility.
+
+  That heuristic is pluggable, not hard-wired: `KernelPump` drives the abstract `FeasibilityHeuristic`
+  interface (`include/kernelpump/feasibility_heuristic.h`) and picks an implementation by name from
+  `HeuristicsFactory` via the `kp.heuristic` key (default `feaspump`). The classical FP is supplied by the
+  thin adapter `FeasibilityPumpHeuristic` (`include/kernelpump/feaspump_heuristic.h`, registered in
+  `src/feaspump_heuristic.cpp`), which leaves `FeasibilityPump` itself untouched. To add another heuristic,
+  implement the interface and register it in a factory recorder — no change to `KernelPump` is needed;
+  `submip` (`src/submip_heuristic.cpp`) is the second implementation and the worked example. The
+  contract that matters most: **one instance per KP run**, `readConfig()` once, then `init()`+`run()` per
+  bucket, because FP's iteration limits are a budget shared across all buckets. The design, the lifecycle
+  contract and the behaviour-preservation traps are written up in `docs/spec-heuristic-interface.md`.
 
 After a solution is found, `main.cpp` fixes the integer variables and re-solves the LP relaxation to get a
 "reoptimized" objective value, then writes results via `Solution::WriteToFile` (`src/solution.cpp` /

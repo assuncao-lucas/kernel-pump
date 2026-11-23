@@ -68,7 +68,7 @@ find_package(GUROBI)
 find_package(Threads)
 
 # Define libkp
-add_library(libkp STATIC src/feaspump.cpp src/transformers.cpp src/ranking.cpp src/solution.cpp src/kernelpump.cpp)
+add_library(libkp STATIC src/feaspump.cpp src/feaspump_heuristic.cpp src/feasibility_heuristic.cpp src/submip_heuristic.cpp src/transformers.cpp src/ranking.cpp src/solution.cpp src/kernelpump.cpp)
 target_link_libraries(libkp PUBLIC Utils::Lib fmt::fmt Prop::Lib)
 add_library(Kp::Lib ALIAS libkp)
 
@@ -101,6 +101,9 @@ if (CPLEX_FOUND)
   target_compile_definitions(kp PUBLIC HAS_CPLEX=1)
   target_sources(libkp PRIVATE src/cpxmodel.cpp)
   target_link_libraries(libkp PUBLIC Cplex::Cplex)
+  # contract tests for the FeasibilityHeuristic interface (needs a real MIPModelI to drive KP)
+  add_executable(heuristic_interface_test tests/heuristic_interface_test.cpp)
+  target_link_libraries(heuristic_interface_test PRIVATE -Wl,--whole-archive Prop::Lib Kp::Lib -Wl,--no-whole-archive Utils::Lib fmt::fmt)
 endif()
 
 if (XPRESS_FOUND)

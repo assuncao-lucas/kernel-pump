@@ -28,7 +28,7 @@ Before concluding that a key matters for a run, check `method=` first.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `method` | *(none — throws)* | `solver` \| `feaspump` \| `kernelpump`. Case-insensitive. |
+| `method` | *(none — throws)* | `solver` \| `kernelpump` \| the name of any registered feasibility heuristic, run standalone over the whole problem. `feaspump` is the only one that permits it; `submip` refuses, since standalone it would duplicate `solver`. Case-insensitive; an unknown value throws and the message lists the registered names. |
 | `solver` | `cpx` | Backend. Only `cpx` works; others throw unless compiled in. |
 | `runName` | `default` | Goes into the output filename `s_<runName>_<prob>_<seed>.sol`. By convention the config name. |
 | `seed` | `0` | Seeds the rounder and the ranker. The only source of run-to-run variation. |
@@ -43,7 +43,7 @@ Before concluding that a key matters for a run, check `method=` first.
 
 ## `kp.*` — Kernel Pump
 
-Read in `KernelPump::readConfig` (`src/kernelpump.cpp:48`).
+Read in `KernelPump::readConfig` (`src/kernelpump.cpp`).
 
 ### Kernel/bucket construction
 
@@ -74,6 +74,41 @@ exclusive in practice; if none is set, the instance's own objective is used.
 | --- | --- | --- |
 | `kp.forceBucketVarsIntoKernel` | `0` | `1` = absorb the whole bucket into the kernel every iteration (monotone growth). `0` = absorb only binaries with `closest_frac > 0`. **All paper configs use 1.** |
 | `kp.resetFPBasisAtNewPump` | `0` | `1` = each bucket's FP solves its own initial LP. `0` = warm-start from the best fractional point so far. |
+
+### Which heuristic KP drives
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `kp.heuristic` | `feaspump` | Name of the `FeasibilityHeuristic` implementation KP drives per bucket, resolved through `HeuristicsFactory`. `feaspump` is the classical FP via the `FeasibilityPumpHeuristic` adapter. An unregistered name is rejected early in `src/main.cpp` (loudly, before the try/catch that `-DSILENT_EXEC` would mute) and the message lists the registered names. No config in `settings/all` sets this key. |
+| `kp.kernelRepairLpMethod` | `default` | Simplex method for the LPs solved while repairing the initial kernel (`kp.tryEnforceFeasibilityInitialKernel=1`). Same spellings as `fp.reOptMethod`: `default`→`'S'`, `primal`→`'P'`, `dual`→`'D'`, `barrier`→`'B'`. **Historical note:** these LPs used to call `FeasibilityPump::getReOptMethod()` *before* FP's `readConfig()` had run, so they always got the constructor default `'S'` regardless of `fp.reOptMethod`. This key makes the choice explicit; its default reproduces that `'S'` exactly, so no committed config changes behaviour. |
+
+## `submip.*` — sub-MIP heuristic
+
+Read in `SubMipHeuristic::readConfig` (`src/submip_heuristic.cpp`). Only consulted when
+`kp.heuristic=submip`. **`method=submip` is refused**: standalone it would be `method=solver` capped
+at `submip.nodeLimit`, i.e. the same search artificially limited, so use `method=solver` for a plain
+first-feasible solve.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `submip.nodeLimit` | `500` | Branch-and-bound node cap per invocation; `0` = unlimited. 500 follows Mexi, Berthold & Salvagnin (EJCO 2023) for sub-MIP stages inside FP. |
+| `submip.feasEmphasis` | `1` | Sets `IntParam::Emphasis` — CPLEX feasibility emphasis, Gurobi `MIPFocus=1`. |
+
+It has **no objective key of its own**: the sub-MIP solve is this heuristic's counterpart of FP's
+initial LP, so it honours the same `fp.forceNullObjectiveInitialLP` /
+`fp.forceSumVarsObjectiveInitialLP` / `fp.forceSumVarsObjectiveInitialLPMaxSense` /
+`fp.reverseObjectiveFunction` switch, with the same precedence (null wins over sum-of-binaries).
+That is what keeps KP⁻/KP⁺/KP⁺ᐟ⁻ meaning the same thing whichever heuristic is driving.
+
+Two things that bite:
+
+- **`kp.heuristic=submip` requires `kp.forceBucketVarsIntoKernel=1`** and refuses to run otherwise.
+  A branch-and-bound call reports no closest-to-feasible point, so under selective absorption the
+  kernel would never grow. The refusal is raised from `main.cpp`, before the try/catch that
+  `-DSILENT_EXEC` mutes.
+- **`# iterations` in the `.sol` file means branch-and-bound NODES** for a submip run, not pumping
+  iterations. There is also no budget shared across buckets — unlike `fp.iterLimit`, each invocation
+  gets a fresh node limit.
 
 ## `fp.*` — Feasibility Pump
 

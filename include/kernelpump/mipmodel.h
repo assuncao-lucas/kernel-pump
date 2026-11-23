@@ -263,6 +263,21 @@ public:
 			consoleLog("col {}: {}", xNames[i], dep_list);
 		}
 	}
+	/**
+	 * Was the last solve proven INFEASIBLE, as opposed to merely stopped by a limit with nothing
+	 * found? isInfeasibleOrTimeReached() deliberately conflates the two, which is right for the
+	 * callers that only ask "is there a usable solution?", but a heuristic driving sub-problems
+	 * needs to tell them apart: proven infeasible means the sub-problem can never succeed, while a
+	 * limit means it might with more budget.
+	 *
+	 * Exists so that no caller has to branch on status(), whose values are raw solver codes and
+	 * share neither values nor meanings between backends.
+	 *
+	 * Default false: a backend that cannot tell makes the caller treat the case as "limit reached",
+	 * which is the conservative direction (nothing is concluded from a guess). Overridden by the
+	 * production backends.
+	 */
+	virtual bool isProvenInfeasible() const { return false; }
 	virtual void findSetOfConflictingVariables(boost::dynamic_bitset<> inactive_binary_vars, std::vector<int> &conflicting_constraints, std::vector<int> &conflicting_vars, bool optimize_set, double time_limit) = 0;
 	virtual void col(int cidx, dominiqs::SparseVector &col, char &type, double &lb, double &ub, double &obj) const = 0;
 	virtual void cols(dominiqs::SparseMatrix &matrix) const = 0;

@@ -12,6 +12,11 @@ a MIP — neither is an optimiser. Built by extending the public FeasPumpCollect
 Everything below was derived by reading the implementation. Where behaviour is surprising, the
 file:line is given so you can re-verify rather than trust this document.
 
+> **Before changing the method itself**, read the `kernel-pump-literature` skill. Some of what looks
+> surprising here is the *published* method (notably the globally shared iteration budget), and
+> several plausible-sounding improvements were already tried and rejected by the authors. That skill
+> holds the paper of record, the variant↔config mapping and the prior art.
+
 ## The one thing to understand first
 
 A "kernel" is **not** a submodel. Variables are never added or removed. KP works entirely by
@@ -44,14 +49,21 @@ are **not production-ready**. Only `solver=cpx` works. Don't spend effort on the
 
 ## Three methods, one entry point
 
-`method=` in the config selects the path in `src/main.cpp:100-113` (case-insensitive; empty or
-unrecognised throws):
+`method=` in the config selects the path in `src/main.cpp` (case-insensitive; empty or unrecognised
+throws, and the error message lists the registered heuristics):
 
 - **`solver`** — plain CPLEX MIP solve with `SolutionLimit=1`, i.e. stop at the first feasible
   solution. The baseline. `mipFeasEmphasis=1` additionally sets CPLEX feasibility emphasis.
-- **`feaspump`** — one `FeasibilityPump` over the whole problem.
-- **`kernelpump`** — `KernelPump`, which drives an *internal* `FeasibilityPump` repeatedly over a
-  growing kernel.
+- **`kernelpump`** — `KernelPump`, which drives a feasibility heuristic repeatedly over a growing
+  kernel (which heuristic: `kp.heuristic`, default `feaspump`).
+- **any registered feasibility-heuristic name** — run that heuristic standalone over the whole
+  problem. In practice `method=feaspump`, meaning one `FeasibilityPump` over the whole problem
+  exactly as before; a heuristic may refuse this role via `validateConfig()`, as `submip` does.
+
+`main.cpp` holds no reference to any concrete heuristic: it resolves the name through
+`resolveHeuristicName()` against `HeuristicsFactory`. Registering a new heuristic therefore makes it
+available as both `method=<name>` and `kp.heuristic=<name>` with no change to `main.cpp` or
+`KernelPump`. See **Pluggable feasibility heuristic** below.
 
 After any of them finds `x`, `main.cpp` does three things that matter:
 1. **Re-verifies every constraint** against `x` with tolerance `0.001` and throws if violated
@@ -164,8 +176,10 @@ the kernel size before this repair, `..._refined_` after.
   which gets all remaining time (`src/kernelpump.cpp:826,836`).
 - *reference kernel* = current kernel ∪ current bucket. Activate the entering vars, deactivate the
   ones leaving.
-- Run `feasibility_pump_.init(model_)` then `.pump(...)`. If `init` returns false the subproblem is
-  already infeasible and FP never iterates.
+- Run `heuristic_->init(model_)` then `->run(...)`. If `init` returns false the subproblem is
+  already infeasible and the heuristic never iterates. `heuristic_` is a `FeasibilityHeuristic`
+  chosen by `kp.heuristic` (default `feaspump` = the classical FP behind a thin adapter), so KP is
+  not tied to FP; see the **Pluggable feasibility heuristic** section below.
 - `stopWithNoImprLimit` is **disabled for the last bucket only**, letting the final attempt run
   to the full iteration/time budget (`src/kernelpump.cpp:895`).
 - **Warm start**: unless `resetFPBasisAtNewPump=1`, the best fractional point found so far
@@ -194,8 +208,8 @@ LP-feasible and not presolve-infeasible) — useful for diagnosing "FP never got
 
 ## Budget carry-over — the biggest trap
 
-`KernelPump::Run` calls `feasibility_pump_.readConfig()` **once**, before the loop
-(`src/kernelpump.cpp:818`), but calls `init()` + `pump()` **per bucket**. And at the end of every
+`KernelPump::Run` calls `heuristic_->readConfig()` **once**, before the loop, but calls `init()` +
+`run()` **per bucket**, on a single heuristic instance created in `Init()`. And at the end of every
 `pumpLoop`, the iteration limits are **decremented by the iterations just consumed**
 (`src/feaspump.cpp:1975-1985`):
 
@@ -217,6 +231,54 @@ stage1IterLimit -= used;  stage2IterLimit -= used;  iterLimit -= used;
   `closest_frac_` and feeds them back in.
 
 If you change iteration-limit handling, check all three of these interactions.
+
+## Pluggable feasibility heuristic
+
+KP does not depend on FP as such: it needs *some* procedure that, given the sub-MIP induced by the
+active kernel, either returns an integer-feasible point or reports the fractional point it got
+closest with. That contract is the abstract `FeasibilityHeuristic`
+(`include/kernelpump/feasibility_heuristic.h`):
+
+| Member | Role |
+| --- | --- |
+| `readConfig()` | read own `gConfig()` keys; called **once**, before the first `init()` |
+| `init(model, ctype)` | prepare for a subproblem; `false` ⇒ already infeasible, `run()` is skipped |
+| `run(timeLimit, HeuristicStart, stopOnNoImprovement)` | the work; returns `HeuristicOutcome{foundSolution, progressed}` |
+| `getSolution` / `getPrimalBound` | results on success |
+| `getClosestDist` / `getClosestFrac` | best fractional point of the **last** invocation only |
+| `getIterations` / `name` | reporting |
+
+`KernelPump` holds one `FeasibilityHeuristicPtr`, created at the end of a successful `Init()` from
+`HeuristicsFactory` by the `kp.heuristic` name. `FeasibilityPumpHeuristic`
+(`include/kernelpump/feaspump_heuristic.h`, registered in `src/feaspump_heuristic.cpp` as
+`"feaspump"`) forwards straight to `FeasibilityPump`, which was left untouched by the
+generalisation. Adding a heuristic means implementing the interface and registering it; `KernelPump`
+does not change.
+
+The second implementation is `SubMipHeuristic` (`submip`), which solves the restricted problem with
+the backend's own MIP solver at `SolutionLimit=1`. It is for `kp.heuristic=submip` only and refuses
+`method=submip`, because standalone it would be `method=solver` capped at `submip.nodeLimit`. Two differences from FP that surprise readers:
+its `# iterations` in the `.sol` file is **branch-and-bound nodes**, and it has **no budget shared
+across buckets** (each invocation gets a fresh `submip.nodeLimit`, unlike `fp.iterLimit`). It also
+requires `kp.forceBucketVarsIntoKernel=1`, because it reports no closest-to-feasible point of its
+own. See `docs/spec-submip-heuristic.md` and the `submip.*` keys in `references/config-reference.md`.
+
+Three things that bite:
+
+- **One instance per run.** Implementations may carry state across buckets and FP does — see
+  *Budget carry-over* above. Creating one per bucket would hand every bucket a full iteration
+  budget and silently invalidate published results.
+- **`HeuristicStart::dist` is informational.** `pump()` logs it and then resets its own
+  `closestDist` to `INFBOUND` (`src/feaspump.cpp:691`), so a warm start does not seed FP's notion
+  of the best distance. KP keeps the running best itself.
+- **`progressed` is nearly always true once a warm start exists**, because a warm start assigns
+  `closestFrac` immediately (`src/feaspump.cpp:686`) and `progressed` is `!closestFrac.empty()`
+  (`src/feaspump.cpp:822`). The `false` branch shows up mainly on the first bucket or with
+  `kp.resetFPBasisAtNewPump=1`.
+
+Design, lifecycle contract and the behaviour-preservation traps: `docs/spec-heuristic-interface.md`.
+Contract tests: `tests/heuristic_interface_test.cpp` (needs CPLEX), which also covers the
+kernel-absorption branches no paper config reaches.
 
 ## Presolve discipline
 

@@ -393,6 +393,13 @@ bool GRBModel::isInfeasibleOrTimeReached()
 	return false;
 }
 
+/* Proven infeasible, as opposed to stopped by a limit; see MIPModelI::isProvenInfeasible. */
+bool GRBModel::isProvenInfeasible() const
+{
+	int st = status();
+	return st == GRB_INFEASIBLE || st == GRB_INF_OR_UNBD;
+}
+
 bool GRBModel::mipopt()
 {
 	DOMINIQS_ASSERT(model);

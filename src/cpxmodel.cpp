@@ -171,6 +171,15 @@ bool CPXModel::isInfeasibleOrTimeReached()
 	return false;
 }
 
+/* Proven infeasible, as opposed to stopped by a limit. Deliberately excludes every *_TIME_LIM_*
+ * and abort status that isInfeasibleOrTimeReached() folds in. */
+bool CPXModel::isProvenInfeasible() const
+{
+	auto solve_status = status();
+	return solve_status == CPX_STAT_INFEASIBLE || solve_status == CPX_STAT_INForUNBD ||
+		   solve_status == CPXMIP_INFEASIBLE || solve_status == CPXMIP_INForUNBD;
+}
+
 bool CPXModel::mipopt()
 {
 	// every call to solve must be SILENT to avoid throwing error when sub-problems are infeasible, but, in this case, should only be called in stage 3, when problem is known to be feasible already!

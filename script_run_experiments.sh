@@ -191,6 +191,8 @@ cd ./build
 
 # Build executable
 echo "Building executable..."
+# shellcheck source=cmake_env.sh
+. ../cmake_env.sh
 cmake --build . -j 12
 
 # ----------------------------

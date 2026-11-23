@@ -1,0 +1,16 @@
+tier	config	instance	seed	timelimit	reason
+tierA	config21	neos-1456979	1	30	non-deterministic on repeat run (wall-clock-sensitive per-bucket budget)
+tierA	config21	neos-1456979	2	30	non-deterministic on repeat run (wall-clock-sensitive per-bucket budget)
+tierA	config21	neos-1456979	3	30	non-deterministic on repeat run (wall-clock-sensitive per-bucket budget)
+tierA	config23	air05	3	30	non-deterministic on repeat run (wall-clock-sensitive per-bucket budget)
+tierA	config23	neos-1456979	2	30	non-deterministic on repeat run (wall-clock-sensitive per-bucket budget)
+tierA	config16	neos-1456979	1	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config16	neos-1456979	2	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config16	neos-1456979	3	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config17	neos-1456979	1	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config17	neos-1456979	2	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config17	neos-1456979	3	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config23	neos-1456979	1	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config23	neos-1456979	3	30	unstable on the BASELINE binary: 3-run repeat gave up to 3 distinct outcomes per case (see stability-neos-1456979.tsv); the 2-run M0 screen was too weak for it
+tierA	config21	air05	3	30	stale golden record AND flaky: the recorded value stopped reproducing even on the baseline binary, and a 3-run baseline repeat produced 2 distinct outcomes (see MANIFEST)
+tierA	config21	air05	2	30	bistable across sittings: recorded 4e0d15d0 at M0, re-recorded cebc18c3 after it drifted, then drifted back to 4e0d15d0 -- self-consistent 3-5 runs within any one sitting, so no stability screen catches it. Re-recording is not a fix; excluded.

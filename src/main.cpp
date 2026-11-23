@@ -10,6 +10,8 @@
 #include <iostream>
 #include <string>
 #include <algorithm>
+#include <iterator>
+#include <vector>
 #include <iomanip>
 #include <fstream>
 
@@ -22,7 +24,7 @@
 #include <utils/consolelog.h>
 #include <utils/path.h>
 
-#include "kernelpump/feaspump.h"
+#include "kernelpump/feasibility_heuristic.h"
 #include "kernelpump/version.h"
 #include "kernelpump/kernelpump.h"
 #include "kernelpump/solution.h"
@@ -100,7 +102,9 @@ int main(int argc, char const *argv[])
 	// seed = generateSeed(seed);
 	gConfig().set<uint64_t>("seed", seed);
 
-	bool solveOriginalMIP = false, solveKernelPump = false, solveFeasPump = false;
+	bool solveOriginalMIP = false, solveKernelPump = false, solveHeuristic = false;
+	// when solveHeuristic: the registered name of the heuristic to run standalone
+	std::string standaloneHeuristic;
 
 	std::string upper_method = method;
 	std::transform(upper_method.begin(), upper_method.end(), upper_method.begin(), ::toupper);
@@ -108,12 +112,52 @@ int main(int argc, char const *argv[])
 		throw std::runtime_error(fmt::format("No method selected"));
 	else if (upper_method == "SOLVER")
 		solveOriginalMIP = true;
-	else if (upper_method == "FEASPUMP")
-		solveFeasPump = true;
 	else if (upper_method == "KERNELPUMP")
 		solveKernelPump = true;
 	else
-		throw std::runtime_error(fmt::format("Selected invalid method {}", method));
+	{
+		// Any registered feasibility heuristic can be run standalone, over the whole problem,
+		// by naming it here. method=feaspump is simply the one that has always existed; adding a
+		// heuristic to HeuristicsFactory makes it available both here and as kp.heuristic.
+		// The lookup is case-insensitive, so every spelling that worked before still works.
+		standaloneHeuristic = resolveHeuristicName(method);
+		if (standaloneHeuristic.empty())
+			throw std::runtime_error(fmt::format(
+				"Selected invalid method {} (expected solver, kernelpump, or a registered "
+				"feasibility heuristic: {})",
+				method, registeredHeuristicNames()));
+		solveHeuristic = true;
+	}
+
+	// Validate kp.heuristic here, alongside method=, rather than relying on the throw in
+	// KernelPump::Init(): that one lands inside the try/catch below, whose handler goes through
+	// consoleError() and is therefore silenced by -DSILENT_EXEC -- a mistyped key would exit 0
+	// with no .sol file, which in a batch run is indistinguishable from a legitimate non-result.
+	if (solveKernelPump)
+	{
+		std::string heuristicName = gConfig().get("kp.heuristic", std::string("feaspump"));
+		if (resolveHeuristicName(heuristicName).empty())
+			throw std::runtime_error(fmt::format("Selected invalid kp.heuristic {} (registered: {})",
+												 heuristicName, registeredHeuristicNames()));
+		LOG_ITEM("kp.heuristic", heuristicName);
+
+		// same reasoning: fail loudly on a mistyped LP method rather than silently producing nothing
+		KernelPump::ParseLpMethod(gConfig().get("kp.kernelRepairLpMethod", std::string("default")));
+
+		// and let the heuristic itself reject a configuration it cannot work with, here rather
+		// than from readConfig()/init(), so the message is not swallowed by the handler below
+		FeasibilityHeuristicPtr probe(
+			HeuristicsFactory::getInstance().create(resolveHeuristicName(heuristicName)));
+		if (probe)
+			probe->validateConfig(/*drivenByKernelPump=*/true);
+	}
+	else if (solveHeuristic)
+	{
+		LOG_ITEM("heuristic", standaloneHeuristic);
+		FeasibilityHeuristicPtr probe(HeuristicsFactory::getInstance().create(standaloneHeuristic));
+		if (probe)
+			probe->validateConfig(/*drivenByKernelPump=*/false);
+	}
 
 	MIPModelPtr model;
 	StopWatch watch;
@@ -283,7 +327,7 @@ int main(int argc, char const *argv[])
 
 			kp.Reset();
 		}
-		else if (solveFeasPump)
+		else if (solveHeuristic)
 		{
 			// set tolerance for PDLP and warm start parameter
 			if (solver == "pdlp")
@@ -292,26 +336,29 @@ int main(int argc, char const *argv[])
 				model->dblParam(DblParam::PdlpToleranceDecreaseFactor, pdlpTolDecreaseFactor);
 				model->intParam(IntParam::PdlpWarmStart, pdlpWarmStart);
 			}
-			// feaspump
-			FeasibilityPump fp;
-			fp.readConfig();
+			// Run the chosen feasibility heuristic standalone, over the whole problem. Name
+			// validated above, so create() cannot fail here.
+			FeasibilityHeuristicPtr heur(HeuristicsFactory::getInstance().create(standaloneHeuristic));
+			DOMINIQS_ASSERT(heur);
+			heur->readConfig();
 
-			auto result = fp.init(model);
+			auto result = heur->init(model);
 			if (result)
 			{
 				auto timeLeft = std::max(timeLimit - watch.getElapsed(), 0.0);
-				fp.pump(timeLeft, false);
-				if (fp.foundSolution())
+				// no warm start, and no early stop on stagnation: one pass over the whole problem
+				heur->run(timeLeft, HeuristicStart(), false);
+				if (heur->foundSolution())
 				{
 					foundSolution = true;
-					fp.getSolution(x);
+					heur->getSolution(x);
 				}
 			}
 			watch.stop();
 
-			solution.is_feasible_ = fp.foundSolution();
-			solution.num_iterations_ = fp.getIterations();
-			solution.projection_integrality_gap_ = fp.getClosestDist();
+			solution.is_feasible_ = heur->foundSolution();
+			solution.num_iterations_ = heur->getIterations();
+			solution.projection_integrality_gap_ = heur->getClosestDist();
 			if (foundSolution)
 			{
 				std::tie(solution.real_integrality_gap_, solution.num_frac_) = model->computeIntegralityGap(x, 0.001);
@@ -321,13 +368,16 @@ int main(int argc, char const *argv[])
 			else
 			{
 				std::vector<double> closest_frac;
-				fp.getClosestFrac(closest_frac);
+				heur->getClosestFrac(closest_frac);
 				std::tie(solution.real_integrality_gap_, solution.num_frac_) = model->computeIntegralityGap(closest_frac, 0.001);
 			}
 			std::cout << "gap = " << solution.real_integrality_gap_ << " | num frac= " << solution.num_frac_ << std::endl;
 			solution.total_time_spent_ = watch.getTotal();
 
-			fp.resetTotal();
+			// The old code called fp.resetTotal() here. It only cleared FeasibilityPump's own
+			// members and was the last statement before the object went out of scope, so dropping
+			// it changes nothing -- and resetTotal() is deliberately not part of the interface,
+			// since no driver needs it and implementations need not share its semantics.
 		}
 
 		// check and print solution found.
